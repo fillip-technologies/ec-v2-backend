@@ -5,6 +5,7 @@ import { ConfigurationModule } from './core/config/configuration.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
+import { CountriesModule } from './modules/countries/countries.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { CatalogModule } from './modules/catalog/catalog.module';
     PrismaModule,
     AuthModule,
     CatalogModule,
+    CountriesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

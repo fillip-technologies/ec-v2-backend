@@ -22,6 +22,9 @@ export class TemplatesService {
           include: {
             tasks: {
               orderBy: { orderIndex: 'asc' },
+              include: {
+                resources: true,
+              },
             },
             rubric: true,
             resources: true,
@@ -67,8 +70,13 @@ export class TemplatesService {
         project: true,
         steps: {
           include: {
-            tasks: true,
+            tasks: {
+              include: {
+                resources: true,
+              },
+            },
             rubric: true,
+            resources: true,
           },
           orderBy: { orderIndex: 'asc' },
         },
@@ -95,8 +103,13 @@ export class TemplatesService {
         description: dto.description?.trim(),
       },
       include: {
-        tasks: true,
+        tasks: {
+          include: {
+            resources: true,
+          },
+        },
         rubric: true,
+        resources: true,
       },
     });
   }
@@ -118,8 +131,13 @@ export class TemplatesService {
         ...(dto.description !== undefined ? { description: dto.description?.trim() } : {}),
       },
       include: {
-        tasks: true,
+        tasks: {
+          include: {
+            resources: true,
+          },
+        },
         rubric: true,
+        resources: true,
       },
     });
   }
@@ -153,6 +171,9 @@ export class TemplatesService {
         title: dto.title.trim(),
         description: dto.description?.trim(),
       },
+      include: {
+        resources: true,
+      },
     });
   }
 
@@ -171,6 +192,9 @@ export class TemplatesService {
         ...(dto.orderIndex ? { orderIndex: dto.orderIndex } : {}),
         ...(dto.title ? { title: dto.title.trim() } : {}),
         ...(dto.description !== undefined ? { description: dto.description?.trim() } : {}),
+      },
+      include: {
+        resources: true,
       },
     });
   }

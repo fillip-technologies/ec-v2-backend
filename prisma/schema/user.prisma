@@ -51,18 +51,6 @@ model User {
   @@map("users")
 }
 
-model Role {
-  id             Int       @id @default(autoincrement())
-  name           String    @unique
-
-  users          User[]
-
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
-
-  @@map("roles")
-}
-
 model Student {
   userid         Int       @map("user_id") @id
   firstName      String    @map("first_name")

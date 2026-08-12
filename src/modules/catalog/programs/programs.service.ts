@@ -10,6 +10,65 @@ export class ProgramsService {
   constructor(private prisma: PrismaService) {}
 
   /**
+   * Helper include block for nested Program -> Projects -> WorkspaceTemplate -> Steps -> Tasks & Resources + Testimonials & FAQs
+   */
+  private get programNestedInclude() {
+    return {
+      country: true,
+      topics: {
+        include: {
+          topic: {
+            include: {
+              cluster: true,
+            },
+          },
+        },
+      },
+      technologies: {
+        include: {
+          technology: true,
+        },
+      },
+      pricings: {
+        include: {
+          country: true,
+        },
+      },
+      testimonials: {
+        where: { isActive: true },
+        orderBy: { orderIndex: 'asc' as const },
+      },
+      faqs: {
+        where: { isActive: true },
+        orderBy: { orderIndex: 'asc' as const },
+      },
+      projects: {
+        orderBy: { orderIndex: 'asc' as const },
+        include: {
+          resources: true,
+          workspaceTemplate: {
+            include: {
+              steps: {
+                orderBy: { orderIndex: 'asc' as const },
+                include: {
+                  resources: true,
+                  rubric: true,
+                  tasks: {
+                    orderBy: { orderIndex: 'asc' as const },
+                    include: {
+                      resources: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+  }
+
+  /**
    * Get all programs with optional filtering by countryId, topicId, technologyId, status
    */
   async findAll(countryId?: number, topicId?: number, technologyId?: number, status?: string) {
@@ -32,24 +91,7 @@ export class ProgramsService {
             }
           : {}),
       },
-      include: {
-        country: true,
-        topics: {
-          include: {
-            topic: true,
-          },
-        },
-        technologies: {
-          include: {
-            technology: true,
-          },
-        },
-        pricings: {
-          include: {
-            country: true,
-          },
-        },
-      },
+      include: this.programNestedInclude,
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -63,28 +105,7 @@ export class ProgramsService {
 
     const program = await this.prisma.program.findFirst({
       where: isNumeric ? { id: numId } : { slug: idOrSlug },
-      include: {
-        country: true,
-        topics: {
-          include: {
-            topic: {
-              include: {
-                cluster: true,
-              },
-            },
-          },
-        },
-        technologies: {
-          include: {
-            technology: true,
-          },
-        },
-        pricings: {
-          include: {
-            country: true,
-          },
-        },
-      },
+      include: this.programNestedInclude,
     });
 
     if (!program) {
@@ -95,7 +116,7 @@ export class ProgramsService {
   }
 
   /**
-   * Create a new Program with linked topics, technologies, and optional pricings
+   * Create a new Program with outcomes, linked topics, technologies, and optional pricings
    */
   async create(dto: CreateProgramDto) {
     const slug = dto.slug.toLowerCase().trim();
@@ -115,6 +136,7 @@ export class ProgramsService {
         title: dto.title.trim(),
         slug,
         description: dto.description?.trim(),
+        outcomes: dto.outcomes?.trim(),
         durationHours: dto.durationHours,
         status: dto.status?.toLowerCase().trim() || 'draft',
         ...(dto.topicIds && dto.topicIds.length > 0
@@ -150,29 +172,12 @@ export class ProgramsService {
             }
           : {}),
       },
-      include: {
-        country: true,
-        topics: {
-          include: {
-            topic: true,
-          },
-        },
-        technologies: {
-          include: {
-            technology: true,
-          },
-        },
-        pricings: {
-          include: {
-            country: true,
-          },
-        },
-      },
+      include: this.programNestedInclude,
     });
   }
 
   /**
-   * Update an existing Program
+   * Update an existing Program including outcomes
    */
   async update(id: number, dto: UpdateProgramDto) {
     const program = await this.prisma.program.findUnique({ where: { id } });
@@ -223,15 +228,11 @@ export class ProgramsService {
           ...(dto.title ? { title: dto.title.trim() } : {}),
           ...(dto.slug ? { slug: dto.slug.toLowerCase().trim() } : {}),
           ...(dto.description !== undefined ? { description: dto.description?.trim() } : {}),
+          ...(dto.outcomes !== undefined ? { outcomes: dto.outcomes?.trim() } : {}),
           ...(dto.durationHours ? { durationHours: dto.durationHours } : {}),
           ...(dto.status ? { status: dto.status.toLowerCase().trim() } : {}),
         },
-        include: {
-          country: true,
-          topics: { include: { topic: true } },
-          technologies: { include: { technology: true } },
-          pricings: { include: { country: true } },
-        },
+        include: this.programNestedInclude,
       });
     });
   }

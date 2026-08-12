@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
@@ -9,7 +10,7 @@ describe('ProgramsController (e2e)', () => {
   let createdProgramId: number;
   let createdPricingId: number;
 
-  const testSlug = `program-test-${Date.now()}`;
+  const testSlug = `test-program-slug-${Date.now()}`;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -27,14 +28,10 @@ describe('ProgramsController (e2e)', () => {
     await app.init();
 
     const res = await request(app.getHttpServer())
-      .post('/auth/register/student')
+      .post('/auth/login')
       .send({
-        email: `program.tester.${Date.now()}@example.com`,
+        email: 'admin@engineersclinic.com',
         password: 'Password@123',
-        phoneNo: '9876543210',
-        countryId: 1,
-        firstName: 'Tester',
-        lastName: 'Program',
       });
     jwtToken = res.body.accessToken;
   });
@@ -43,12 +40,14 @@ describe('ProgramsController (e2e)', () => {
     await app.close();
   });
 
-  it('GET /catalog/programs - should return list of programs', async () => {
+  it('GET /catalog/programs - should return list of programs with projects & templates', async () => {
     const response = await request(app.getHttpServer())
       .get('/catalog/programs')
       .expect(200);
 
     expect(Array.isArray(response.body)).toBe(true);
+    expect(response.body.length).toBeGreaterThan(0);
+    expect(response.body[0]).toHaveProperty('projects');
   });
 
   it('POST /catalog/programs - should create a new program with topics, tech, and pricings', async () => {
@@ -83,13 +82,26 @@ describe('ProgramsController (e2e)', () => {
     createdPricingId = response.body.pricings[0].id;
   });
 
-  it('GET /catalog/programs/:idOrSlug - should fetch program by ID or slug', async () => {
+  it('GET /catalog/programs/:idOrSlug - should fetch program by ID or slug with projects, workspaceTemplates, steps, tasks & resources', async () => {
     const response = await request(app.getHttpServer())
-      .get(`/catalog/programs/${testSlug}`)
+      .get('/catalog/programs/1')
       .expect(200);
 
-    expect(response.body.id).toBe(createdProgramId);
-    expect(response.body.slug).toBe(testSlug);
+    expect(response.body.id).toBe(1);
+    expect(Array.isArray(response.body.projects)).toBe(true);
+    expect(response.body.projects.length).toBeGreaterThan(0);
+
+    const project = response.body.projects[0];
+    expect(project).toHaveProperty('workspaceTemplate');
+    expect(project.workspaceTemplate).toHaveProperty('steps');
+    expect(Array.isArray(project.workspaceTemplate.steps)).toBe(true);
+    expect(project.workspaceTemplate.steps.length).toBeGreaterThan(0);
+
+    const step = project.workspaceTemplate.steps[0];
+    expect(step).toHaveProperty('tasks');
+    expect(Array.isArray(step.tasks)).toBe(true);
+    expect(step).toHaveProperty('resources');
+    expect(Array.isArray(step.resources)).toBe(true);
   });
 
   it('PATCH /catalog/programs/:id - should update program details', async () => {
@@ -124,7 +136,7 @@ describe('ProgramsController (e2e)', () => {
     expect(response.body.currency).toBe('USD');
   });
 
-  it('PATCH /catalog/programs/pricing/:pricingId - should update pricing option', async () => {
+  it('PATCH /catalog/programs/pricing/:pricingId - should update pricing details', async () => {
     const response = await request(app.getHttpServer())
       .patch(`/catalog/programs/pricing/${createdPricingId}`)
       .set('Authorization', `Bearer ${jwtToken}`)
@@ -136,7 +148,7 @@ describe('ProgramsController (e2e)', () => {
     expect(response.body.id).toBe(createdPricingId);
   });
 
-  it('DELETE /catalog/programs/pricing/:pricingId - should delete pricing option', async () => {
+  it('DELETE /catalog/programs/pricing/:pricingId - should delete program pricing', async () => {
     const response = await request(app.getHttpServer())
       .delete(`/catalog/programs/pricing/${createdPricingId}`)
       .set('Authorization', `Bearer ${jwtToken}`)

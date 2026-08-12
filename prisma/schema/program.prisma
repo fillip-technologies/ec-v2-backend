@@ -51,6 +51,7 @@ model Program {
   description   String? @db.Text
   durationHours Int     @map("duration_hours")
   status        String  @default("draft")
+  outcomes      String? @db.Text
 
   country Country        @relation(fields: [countryId], references: [id])
 
@@ -59,6 +60,8 @@ model Program {
   pricings ProgramPricing[]
   projects Project[]
   enrollments Enrollment[]
+  testimonials ProgramTestimonial[]
+  faqs ProgramFaq[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -188,6 +191,7 @@ model TemplateTask {
 
   step TemplateStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
 
+  resources      Resource[]
   workspaceTasks WorkspaceTask[]
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -216,6 +220,7 @@ model Rubric {
 enum ResourceOwnerType {
   PROJECT
   STEP
+  TASK
 }
 
 model Resource {
@@ -223,16 +228,70 @@ model Resource {
   ownerType ResourceOwnerType @map("owner_type")
   projectId Int?              @map("project_id")
   stepId    Int?              @map("step_id")
+  taskId    Int?              @map("task_id")
   type      String            @db.VarChar(20)
   title     String
   url       String
 
-  project Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project Project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   step    TemplateStep? @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  task    TemplateTask? @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now()) @map("created_at")
 
   @@index([projectId])
   @@index([stepId])
+  @@index([taskId])
   @@map("resources")
 }
+
+model ProgramTestimonial {
+  id          Int     @id @default(autoincrement())
+  programId   Int     @map("program_id")
+  authorName  String  @map("author_name")
+  authorRole  String? @map("author_role")   // e.g. "SDE at Infosys" or a college name
+  quote       String  @db.Text
+  rating      Int?    @db.SmallInt          // optional, 1-5
+  avatarUrl   String? @map("avatar_url")
+  orderIndex  Int     @default(0) @map("order_index")
+  isActive    Boolean @default(true) @map("is_active")
+
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([programId])
+  @@map("program_testimonials")
+}
+
+model ProgramFaq {
+  id         Int     @id @default(autoincrement())
+  programId  Int     @map("program_id")
+  question   String
+  answer     String  @db.Text
+  orderIndex Int     @default(0) @map("order_index")
+  isActive   Boolean @default(true) @map("is_active")
+
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([programId])
+  @@map("program_faqs")
+}
+
+// model ProgramOutcome {
+//   id         Int    @id @default(autoincrement())
+//   programId  Int    @map("program_id")
+//   text       String @db.Text   // e.g. "Build and deploy a full-stack e-commerce app"
+//   orderIndex Int    @default(0) @map("order_index")
+
+//   program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+//   createdAt DateTime @default(now()) @map("created_at")
+
+//   @@index([programId])
+//   @@map("program_outcomes")
+// }

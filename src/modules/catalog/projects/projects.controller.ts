@@ -23,6 +23,10 @@ import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth/jwt-auth.guard';
+import { RolesGuard } from '../../../core/guards/roles.guard';
+import { PermissionsGuard } from '../../../core/guards/permissions.guard';
+import { Roles } from '../../../core/decorators/roles.decorator';
+import { Permissions } from '../../../core/decorators/permissions.decorator';
 
 @ApiTags('Catalog - Projects')
 @Controller('catalog/projects')
@@ -48,7 +52,9 @@ export class ProjectsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new catalog Project' })
   @ApiResponse({ status: 201, description: 'Project created successfully.' })
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @Roles('super_admin', 'admin')
+  @Permissions('project:create')
   @Post()
   @HttpCode(HttpStatus.CREATED)
   async create(@Body() dto: CreateProjectDto) {
@@ -58,7 +64,9 @@ export class ProjectsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update an existing catalog Project' })
   @ApiResponse({ status: 200, description: 'Project updated successfully.' })
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @Roles('super_admin', 'admin', 'college')
+  @Permissions('project:edit')
   @Patch(':id')
   async update(
     @Param('id', ParseIntPipe) id: number,
@@ -70,7 +78,9 @@ export class ProjectsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a catalog Project by ID' })
   @ApiResponse({ status: 200, description: 'Project deleted successfully.' })
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @Roles('super_admin', 'admin')
+  @Permissions('program:publish')
   @Delete(':id')
   async remove(@Param('id', ParseIntPipe) id: number) {
     return this.projectsService.remove(id);

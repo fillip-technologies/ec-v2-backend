@@ -24,6 +24,11 @@ export class CreateProgramDto {
   @IsString()
   description?: string;
 
+  /** Optional learning outcomes */
+  @IsOptional()
+  @IsString()
+  outcomes?: string;
+
   /** Total duration in hours (e.g. 120) */
   @Type(() => Number)
   @IsInt({ message: 'Duration hours must be an integer' })

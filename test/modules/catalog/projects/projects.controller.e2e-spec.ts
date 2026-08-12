@@ -25,14 +25,10 @@ describe('ProjectsController (e2e)', () => {
     await app.init();
 
     const res = await request(app.getHttpServer())
-      .post('/auth/register/student')
+      .post('/auth/login')
       .send({
-        email: `catalog.project.tester.${Date.now()}@example.com`,
+        email: 'admin@engineersclinic.com',
         password: 'Password@123',
-        phoneNo: '9876543210',
-        countryId: 1,
-        firstName: 'Tester',
-        lastName: 'Project',
       });
     jwtToken = res.body.accessToken;
   });

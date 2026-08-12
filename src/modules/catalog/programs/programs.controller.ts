@@ -25,6 +25,10 @@ import { UpdateProgramDto } from './dto/update-program.dto';
 import { CreateProgramPricingDto } from './dto/create-program-pricing.dto';
 import { UpdateProgramPricingDto } from './dto/update-program-pricing.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth/jwt-auth.guard';
+import { RolesGuard } from '../../../core/guards/roles.guard';
+import { PermissionsGuard } from '../../../core/guards/permissions.guard';
+import { Roles } from '../../../core/decorators/roles.decorator';
+import { Permissions } from '../../../core/decorators/permissions.decorator';
 
 @ApiTags('Catalog - Programs')
 @Controller('catalog/programs')
@@ -63,7 +67,9 @@ export class ProgramsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new Program with optional pricings and status' })
   @ApiResponse({ status: 201, description: 'Program created successfully.' })
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @Roles('super_admin', 'admin')
+  @Permissions('program:create')
   @Post()
   @HttpCode(HttpStatus.CREATED)
   async create(@Body() dto: CreateProgramDto) {
@@ -73,7 +79,9 @@ export class ProgramsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update an existing Program' })
   @ApiResponse({ status: 200, description: 'Program updated successfully.' })
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @Roles('super_admin', 'admin')
+  @Permissions('program:update')
   @Patch(':id')
   async update(
     @Param('id', ParseIntPipe) id: number,
@@ -85,7 +93,9 @@ export class ProgramsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a Program by ID' })
   @ApiResponse({ status: 200, description: 'Program deleted successfully.' })
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @Roles('super_admin', 'admin')
+  @Permissions('program:publish')
   @Delete(':id')
   async remove(@Param('id', ParseIntPipe) id: number) {
     return this.programsService.remove(id);
@@ -94,7 +104,9 @@ export class ProgramsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Add pricing option to an existing program' })
   @ApiResponse({ status: 201, description: 'Program pricing added successfully.' })
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @Roles('super_admin', 'admin')
+  @Permissions('program:update')
   @Post(':id/pricing')
   @HttpCode(HttpStatus.CREATED)
   async addPricing(
@@ -107,7 +119,9 @@ export class ProgramsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update an existing Program Pricing entry' })
   @ApiResponse({ status: 200, description: 'Program pricing updated successfully.' })
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @Roles('super_admin', 'admin')
+  @Permissions('program:update')
   @Patch('pricing/:pricingId')
   async updatePricing(
     @Param('pricingId', ParseIntPipe) pricingId: number,
@@ -119,7 +133,9 @@ export class ProgramsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a Program Pricing entry' })
   @ApiResponse({ status: 200, description: 'Program pricing deleted successfully.' })
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @Roles('super_admin', 'admin')
+  @Permissions('program:publish')
   @Delete('pricing/:pricingId')
   async removePricing(@Param('pricingId', ParseIntPipe) pricingId: number) {
     return this.programsService.removePricing(pricingId);

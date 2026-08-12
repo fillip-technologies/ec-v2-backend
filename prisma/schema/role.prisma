@@ -1,0 +1,39 @@
+model Role {
+  id             Int       @id @default(autoincrement())
+  name           String    @unique
+
+  users          User[]
+  permissions    RolePermission[]
+
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@map("roles")
+}
+
+
+model Permission {
+  id          Int     @id @default(autoincrement())
+  slug        String  @unique   // "resource:action", e.g. "program:publish"
+  name        String
+  description String? @db.Text
+  module      String  @db.VarChar(40)   // "catalogue", "commerce", "support" — for grouping in the admin UI
+
+  roles RolePermission[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([module])
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       Int @map("role_id")
+  permissionId Int @map("permission_id")
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
