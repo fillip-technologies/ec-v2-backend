@@ -1,98 +1,163 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# 🚀 Engineers Clinic Backend API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+An enterprise-grade, scalable REST API for the **Engineers Clinic Platform**, built using **NestJS**, **Prisma 7** (with `@prisma/adapter-mariadb`), **MariaDB / MySQL**, **Passport JWT Authentication**, and **Swagger OpenAPI**.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## 🛠️ Technology Stack & Architecture
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- **Core Framework**: NestJS 11 (TypeScript)
+- **ORM / Database Adapter**: Prisma 7 (Multi-File Schema) with MariaDB Driver Adapter
+- **Database**: MariaDB / MySQL
+- **Authentication**: Passport.js with JWT Strategy (`@nestjs/jwt`, `bcrypt`)
+- **API Documentation**: NestJS Swagger UI (Interactive docs at `/api/docs`)
+- **Architecture**: Domain-Driven Modular Monolith (`src/modules/auth/`, `src/modules/catalog/`)
+- **Testing**: Jest with Mirrored E2E Route Test Suites (`test/modules/`)
 
-## Project setup
+---
 
-```bash
-$ npm install
+## 📂 Project Directory Structure
+
+```text
+engineers-clinic-backend/
+├── src/
+│   ├── main.ts                        # Entry point, CORS, ValidationPipe, Swagger
+│   ├── app.module.ts                  # Root NestJS Application Module
+│   ├── prisma/                        # Global Database Adapter Module
+│   │   ├── prisma.module.ts
+│   │   └── prisma.service.ts
+│   └── modules/                       # 🧱 DOMAIN FEATURE MODULES
+│       ├── auth/                      # Student & College Registration, Login, JWT
+│       └── catalog/                   # Clusters, Topics, Technologies, Programs & Pricing
+│           ├── clusters/
+│           ├── topics/
+│           ├── technologies/
+│           └── programs/
+│
+├── prisma/
+│   ├── schema/                        # 📂 MULTI-FILE PRISMA SCHEMA
+│   │   ├── user.prisma                # User, Role, Country, Student, college, collegeMember
+│   │   └── program.prisma             # Cluster, Topic, Technology, Program, ProgramPricing
+│   └── seed.ts                        # Seeding script for Roles, Country, Clusters, Topics & Tech
+│
+└── test/                              # 🪞 MIRRORED E2E TEST SUITES
+    ├── app.e2e-spec.ts
+    └── modules/
+        ├── auth/
+        │   └── auth.controller.e2e-spec.ts
+        └── catalog/
+            ├── clusters/clusters.controller.e2e-spec.ts
+            ├── topics/topics.controller.e2e-spec.ts
+            ├── technologies/technologies.controller.e2e-spec.ts
+            └── programs/programs.controller.e2e-spec.ts
 ```
 
-## Compile and run the project
+---
 
-```bash
-# development
-$ npm run start
+## ⚙️ Environment Configuration (`.env`)
 
-# watch mode
-$ npm run start:dev
+Create a `.env` file in the root directory:
 
-# production mode
-$ npm run start:prod
+```env
+# Database Credentials
+DATABASE_HOST="localhost"
+DATABASE_PORT=3306
+DATABASE_USER="engineers_user"
+DATABASE_PASSWORD="password123"
+DATABASE_NAME="engineers_clinic"
+DATABASE_URL="mysql://engineers_user:password123@localhost:3306/engineers_clinic"
+
+# JWT Authentication Secret
+JWT_SECRET="engineers_clinic_super_secret_jwt_key_2026"
+JWT_EXPIRES_IN="7d"
+
+# Server Port
+PORT=4000
 ```
 
-## Run tests
+---
 
+## 🛢️ Database & Prisma Commands
+
+### 1. Generate Prisma Client
+Generates the Prisma 7 client from all schema files inside `prisma/schema/`:
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npx prisma generate
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
+### 2. Synchronize Schema with Database (Push to MariaDB)
+Pushes all multi-file table schemas directly to MariaDB without manual SQL migrations:
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npx prisma db push
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### 3. Seed Database (Roles, Country, Clusters, Topics & Technologies)
+Populates default roles (`super_admin`, `admin`, `college`, `student`, `support`), default country (`India`), course clusters, topics, and technologies:
+```bash
+npx ts-node prisma/seed.ts
+```
 
-## Resources
+### 4. Launch Prisma Studio (GUI Database Manager)
+Inspect and manage your MariaDB records via a web UI at `http://localhost:5555`:
+```bash
+npx prisma studio
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+---
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+## 🚀 Running the Server
 
-## Support
+### Development Mode (with Hot Reload / Watch Mode)
+```bash
+npm run start:dev
+```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+### Production Build
+```bash
+npm run build
+```
 
-## Stay in touch
+### Production Server Run
+```bash
+npm run start:prod
+```
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+---
 
-## License
+## 🧪 Testing Commands
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+### 1. Run All End-to-End (E2E) Route Tests (Mirrored Routes)
+Executes all 26+ route test cases covering Auth, Clusters, Topics, Technologies, Programs, and Pricing:
+```bash
+npm run test:e2e
+```
+
+### 2. Run Unit Tests
+```bash
+npm run test
+```
+
+### 3. Run Test Coverage Report
+```bash
+npm run test:cov
+```
+
+---
+
+## 📚 API Documentation (Swagger UI)
+
+When the backend server is running, interactive Swagger OpenAPI documentation is available at:
+
+👉 **[http://localhost:4000/api/docs](http://localhost:4000/api/docs)**
+
+---
+
+## 🔑 Default Seeded Roles Hierarchy
+
+| Role ID | Role Name | Access Level |
+| :---: | :--- | :--- |
+| **1** | `super_admin` | Platform Super Administrator |
+| **2** | `admin` | Content & Operations Administrator |
+| **3** | `college` | College Institution Partner |
+| **4** | `student` | Student Enrolled Learner |
+| **5** | `support` | Helpdesk & Support Staff |

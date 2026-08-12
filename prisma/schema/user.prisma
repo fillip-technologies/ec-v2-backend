@@ -1,0 +1,114 @@
+// Prisma Schema for Engineers Clinic Backend (MySQL)
+
+generator client {
+  provider        = "prisma-client-js"
+  // previewFeatures = ["prismaSchemaFolder"]
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model Country {
+  id            Int       @id @default(autoincrement())
+  isoCode       String    @unique @map("iso_code")
+  name          String    
+  defaultLocal  String    @map("default_local")
+  timezone      String 
+  currencyCode  String    @map("currency_code")
+  isActive      Boolean   @default(true) @map("is_active")
+
+  users             User[]
+  countriescolleges College[]
+  programs          Program[]
+  pricings          ProgramPricing[]
+  
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@map("countries")
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  email    String    @unique
+  password String
+  phoneNo  String   @map("phone_no")
+  roleId   Int      @map("role_id")
+  countryId Int       @map("country_id")
+  status   String    @default("pending")
+
+  // Relations
+  role      Role      @relation(fields: [roleId], references: [id])
+  country   Country   @relation(fields: [countryId], references: [id])
+
+  student  Student?
+  collegeMembers CollegeMember[]
+
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Role {
+  id             Int       @id @default(autoincrement())
+  name           String    @unique
+
+  users          User[]
+
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@map("roles")
+}
+
+model Student {
+  userid         Int       @map("user_id") @id
+  firstName      String    @map("first_name")
+  lastName       String    @map("last_name")
+
+  // Optional College relation (nullable)
+  collegeId Int?     @map("college_id")
+  college   College? @relation(fields: [collegeId], references: [id], onDelete: SetNull)
+
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  enrollments Enrollment[]
+
+  user           User      @relation(fields: [userid], references: [id], onDelete: Cascade)
+
+  @@map("students")
+}
+
+
+model College {
+  id             Int       @id @default(autoincrement())
+  name           String    @unique
+  address        String
+  countryId      Int       @map("country_id")
+  status         String    @default("pending")
+
+  country        Country   @relation(fields: [countryId], references: [id])
+  members        CollegeMember[]
+  students       Student[]
+
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@map("colleges")
+}
+
+model CollegeMember {
+  userId        Int       @id @map("user_id")
+  collegeId     Int       @map("college_id")
+
+  user          User      @relation(fields: [userId], references: [id])
+  college       College   @relation(fields: [collegeId], references: [id])
+
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("college_members")
+}

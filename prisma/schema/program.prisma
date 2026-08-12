@@ -1,0 +1,238 @@
+model Cluster {
+  id          Int     @id @default(autoincrement())
+  slug        String  @unique
+  name        String
+  description String? @db.Text
+
+  topics Topic[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("clusters")
+}
+
+
+model Topic {
+  id        Int     @id @default(autoincrement())
+  clusterId Int     @map("cluster_id")
+  slug      String  @unique
+  name      String
+  isActive  Boolean @default(true) @map("is_active")
+
+  cluster Cluster @relation(fields: [clusterId], references: [id], onDelete: Cascade)
+
+  programs ProgramTopic[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("topics")
+}
+
+
+model ProgramTopic {
+  programId Int @map("program_id")
+  topicId   Int    @map("topic_id")
+
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+  topic   Topic   @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@id([programId, topicId])
+  @@map("program_topics")
+}
+
+
+model Program {
+  id            Int     @id @default(autoincrement())
+  countryId     Int     @map("country_id")
+  title         String
+  slug          String  @unique
+  description   String? @db.Text
+  durationHours Int     @map("duration_hours")
+  status        String  @default("draft")
+
+  country Country        @relation(fields: [countryId], references: [id])
+
+  topics  ProgramTopic[]
+  technologies ProgramTechnology[]
+  pricings ProgramPricing[]
+  projects Project[]
+  enrollments Enrollment[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("programs")
+}
+
+model Technology {
+  id        Int  @id @default(autoincrement())
+  slug      String  @unique
+  name      String
+  isActive  Boolean @default(true) @map("is_active")
+
+  programs ProgramTechnology[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("technologies")
+}
+
+model ProgramTechnology {
+  programId    Int @map("program_id")
+  technologyId Int @map("technology_id")
+
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  technology Technology @relation(fields: [technologyId], references: [id], onDelete: Cascade)
+
+  @@id([programId, technologyId])
+  @@map("program_technologies")
+}
+
+
+model ProgramPricing {
+  id          Int   @id @default(autoincrement())
+
+  programId   Int   @map("program_id")
+  countryId   Int   @map("country_id")
+
+  currency    String
+  amount      Decimal @db.Decimal(10, 2) // in rupees , dollar, euro
+
+  isActive    Boolean  @default(true) @map("is_active")
+
+  validFrom   DateTime? @map("valid_from")
+  validUntil  DateTime? @map("valid_until")
+
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  country Country @relation(fields: [countryId],references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([programId, countryId])
+  @@map("program_pricing")
+}
+
+
+
+model Project {
+  id          Int     @id @default(autoincrement())
+  programId   Int     @map("program_id")
+  title       String
+  description String? @db.Text
+  orderIndex  Int     @map("order_index")
+
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  workspaceTemplate WorkspaceTemplate?
+  resources         Resource[]
+  enrollmentProjects EnrollmentProject[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([programId])
+  @@map("projects")
+}
+
+
+model WorkspaceTemplate {
+  id        Int     @id @default(autoincrement())
+  projectId Int     @unique @map("project_id")
+  version   Int     @default(1)
+  isActive  Boolean @default(true) @map("is_active")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  steps TemplateStep[]
+  studentWorkspaces StudentWorkspace[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("workspace_templates")
+}
+
+model TemplateStep {
+  id                  Int    @id @default(autoincrement())
+  workspaceTemplateId Int    @map("workspace_template_id")
+  orderIndex          Int    @map("order_index")
+  title               String
+  description         String? @db.Text
+
+  workspaceTemplate WorkspaceTemplate @relation(fields: [workspaceTemplateId], references: [id], onDelete: Cascade)
+
+  tasks          TemplateTask[]
+  rubric         Rubric?
+  resources      Resource[]
+  workspaceSteps WorkspaceStep[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([workspaceTemplateId])
+  @@map("template_steps")
+}
+
+model TemplateTask {
+  id          Int     @id @default(autoincrement())
+  stepId      Int     @map("step_id")
+  orderIndex  Int     @map("order_index")
+  title       String
+  description String? @db.Text
+
+  step TemplateStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  workspaceTasks WorkspaceTask[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([stepId])
+  @@map("template_tasks")
+}
+
+model Rubric {
+  id            Int    @id @default(autoincrement())
+  stepId        Int    @unique @map("step_id")
+  version       Int    @default(1)
+  criteria      Json
+  maxScore      Int    @default(100) @map("max_score")
+  passThreshold Int    @default(60) @map("pass_threshold")
+
+  step TemplateStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("rubrics")
+}
+
+enum ResourceOwnerType {
+  PROJECT
+  STEP
+}
+
+model Resource {
+  id        Int               @id @default(autoincrement())
+  ownerType ResourceOwnerType @map("owner_type")
+  projectId Int?              @map("project_id")
+  stepId    Int?              @map("step_id")
+  type      String            @db.VarChar(20)
+  title     String
+  url       String
+
+  project Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  step    TemplateStep? @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([projectId])
+  @@index([stepId])
+  @@map("resources")
+}
