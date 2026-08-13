@@ -12,6 +12,12 @@ enum StepStatus {
   MANUAL_REVIEW
 }
 
+enum SubmissionStatus {
+  EVALUATING
+  PASSED
+  NEEDS_WORK
+}
+
 model Enrollment {
   id        Int              @id @default(autoincrement())
   studentId Int              @map("student_id")
@@ -22,6 +28,7 @@ model Enrollment {
   program Program @relation(fields: [programId], references: [id])
 
   selectedProjects EnrollmentProject[]
+  certificate      Certificate?
 
   enrolledAt  DateTime  @default(now()) @map("enrolled_at")
   completedAt DateTime? @map("completed_at")
@@ -76,8 +83,9 @@ model WorkspaceStep {
   studentWorkspace StudentWorkspace @relation(fields: [studentWorkspaceId], references: [id], onDelete: Cascade)
   templateStep     TemplateStep     @relation(fields: [templateStepId], references: [id])
 
-  tasks    WorkspaceTask[]
-  progress StepProgress?
+  tasks       WorkspaceTask[]
+  progress    StepProgress?
+  submissions Submission[]
 
   @@index([studentWorkspaceId])
   @@map("workspace_steps")
@@ -109,4 +117,56 @@ model StepProgress {
   workspaceStep WorkspaceStep @relation(fields: [workspaceStepId], references: [id], onDelete: Cascade)
 
   @@map("step_progress")
+}
+
+model Submission {
+  id              Int              @id @default(autoincrement())
+  workspaceStepId Int              @map("workspace_step_id")
+  studentId       Int              @map("student_id")
+  payloadUrl      String           @map("payload_url") @db.Text
+  status          SubmissionStatus @default(EVALUATING)
+  attemptIndex    Int              @default(1) @map("attempt_index")
+
+  workspaceStep WorkspaceStep @relation(fields: [workspaceStepId], references: [id], onDelete: Cascade)
+  student       Student       @relation(fields: [studentId], references: [userid], onDelete: Cascade)
+
+  aiReview AiReview?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([workspaceStepId])
+  @@index([studentId])
+  @@map("submissions")
+}
+
+model AiReview {
+  id                Int        @id @default(autoincrement())
+  submissionId      Int        @unique @map("submission_id")
+  score             Int
+  maxScore          Int        @default(100) @map("max_score")
+  passed            Boolean    @default(false)
+  criteriaBreakdown Json       @map("criteria_breakdown")
+  feedback          String     @db.Text
+  improvements      String?    @db.Text
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("ai_reviews")
+}
+
+model Certificate {
+  id             Int        @id @default(autoincrement())
+  enrollmentId   Int        @unique @map("enrollment_id")
+  studentId      Int        @map("student_id")
+  uuid           String     @unique
+  certificateUrl String?    @map("certificate_url")
+  issuedAt       DateTime   @default(now()) @map("issued_at")
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  student    Student    @relation(fields: [studentId], references: [userid], onDelete: Cascade)
+
+  @@index([studentId])
+  @@map("certificates")
 }

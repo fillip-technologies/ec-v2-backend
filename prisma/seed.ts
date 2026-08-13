@@ -742,66 +742,241 @@ async function main() {
   console.log('  ✅ Total Seeded FAQs: ' + (globalFaqCounter - 1));
 
   console.log('🌱 Seeding Enrollments & StudentWorkspaces...');
+  console.log('  🧹 Cleaning stale delivery execution tables...');
+  await prisma.aiReview.deleteMany({});
+  await prisma.submission.deleteMany({});
+  await prisma.stepProgress.deleteMany({});
+  await prisma.workspaceTask.deleteMany({});
+  await prisma.workspaceStep.deleteMany({});
+  await prisma.studentWorkspace.deleteMany({});
+  await prisma.enrollmentProject.deleteMany({});
+  await prisma.enrollment.deleteMany({});
+
   const enrollment = await prisma.enrollment.upsert({
     where: { id: 1 },
     update: { studentId: student.userid, programId: 1, status: 'ACTIVE' },
     create: { id: 1, studentId: student.userid, programId: 1, status: 'ACTIVE' },
   });
 
-  const enrollmentProject = await prisma.enrollmentProject.upsert({
-    where: { id: 1 },
-    update: { enrollmentId: enrollment.id, projectId: 1, orderIndex: 1 },
-    create: { id: 1, enrollmentId: enrollment.id, projectId: 1, orderIndex: 1 },
-  });
+  let wsStepIdCounter = 1;
+  let wsTaskIdCounter = 1;
 
-  const studentWorkspace = await prisma.studentWorkspace.upsert({
-    where: { enrollmentProjectId: enrollmentProject.id },
-    update: { workspaceTemplateId: 1, templateVersion: 1 },
-    create: { id: 1, enrollmentProjectId: enrollmentProject.id, workspaceTemplateId: 1, templateVersion: 1 },
-  });
+  await seedStudentWorkspace(enrollment.id, 1, 1, ['PASSED', 'PASSED']);
+  await seedStudentWorkspace(enrollment.id, 2, 2, ['OPEN', 'LOCKED']);
+  await seedStudentWorkspace(enrollment.id, 3, 3, ['LOCKED', 'LOCKED']);
+  console.log('  ✅ Default Enrollment 1 seeded with 3 Capstone Projects (Project 1 Passed, Project 2 Active, Project 3 Locked)');
 
-  const workspaceStep = await prisma.workspaceStep.upsert({
-    where: { id: 1 },
-    update: {
-      studentWorkspaceId: studentWorkspace.id,
-      templateStepId: 1,
-      orderIndex: 1,
-      title: 'Full Stack Web Engineering - Step 1: System Blueprint',
-      description: 'Review project brief, configure environment, and design architecture schema.',
-    },
-    create: {
-      id: 1,
-      studentWorkspaceId: studentWorkspace.id,
-      templateStepId: 1,
-      orderIndex: 1,
-      title: 'Full Stack Web Engineering - Step 1: System Blueprint',
-      description: 'Review project brief, configure environment, and design architecture schema.',
-    },
-  });
+  console.log('🌱 Seeding Scenario Diversity (single, multi, partial, completed)...');
 
-  await prisma.workspaceTask.upsert({
-    where: { id: 1 },
-    update: {
-      workspaceStepId: workspaceStep.id,
-      templateTaskId: 1,
-      title: 'Initialize codebase & setup core dependencies for Full Stack Web Engineering',
-      description: 'Clone template starter repository and configure environment variables.',
-    },
-    create: {
-      id: 1,
-      workspaceStepId: workspaceStep.id,
-      templateTaskId: 1,
-      title: 'Initialize codebase & setup core dependencies for Full Stack Web Engineering',
-      description: 'Clone template starter repository and configure environment variables.',
-    },
-  });
+  const scenarioUsers = [
+    { id: 5, email: 'priya@example.com', firstName: 'Priya', lastName: 'Iyer', collegeId: 1 },
+    { id: 6, email: 'vikram@example.com', firstName: 'Vikram', lastName: 'Nair', collegeId: 2 },
+    { id: 7, email: 'kavya@example.com', firstName: 'Kavya', lastName: 'Reddy', collegeId: 1 },
+  ];
 
-  await prisma.stepProgress.upsert({
-    where: { workspaceStepId: workspaceStep.id },
-    update: { status: 'OPEN', resubmissionCount: 0, unlockedAt: new Date() },
-    create: { workspaceStepId: workspaceStep.id, status: 'OPEN', resubmissionCount: 0, unlockedAt: new Date() },
+  async function seedStudentWorkspace(
+    enrollmentId: number,
+    projectId: number,
+    orderIndex: number,
+    stepStatuses: Array<'LOCKED' | 'OPEN' | 'PASSED' | 'NEEDS_WORK'>,
+  ) {
+    const ep = await prisma.enrollmentProject.upsert({
+      where: {
+        enrollmentId_projectId: { enrollmentId, projectId },
+      },
+      update: { orderIndex },
+      create: { enrollmentId, projectId, orderIndex },
+    });
+
+    await prisma.studentWorkspace.upsert({
+      where: { enrollmentProjectId: ep.id },
+      update: { workspaceTemplateId: projectId, templateVersion: 1 },
+      create: { enrollmentProjectId: ep.id, workspaceTemplateId: projectId, templateVersion: 1 },
+    });
+
+    const templateSteps = await prisma.templateStep.findMany({
+      where: { workspaceTemplateId: projectId },
+      orderBy: { orderIndex: 'asc' },
+    });
+
+    for (let i = 0; i < templateSteps.length; i++) {
+      const ts = templateSteps[i];
+      const status = stepStatuses[i] ?? 'LOCKED';
+      const stepId = wsStepIdCounter++;
+
+      const newWsStep = await prisma.workspaceStep.upsert({
+        where: { id: stepId },
+        update: {
+          studentWorkspaceId: ep.id,
+          templateStepId: ts.id,
+          orderIndex: ts.orderIndex,
+          title: ts.title,
+          description: ts.description,
+        },
+        create: {
+          id: stepId,
+          studentWorkspaceId: ep.id,
+          templateStepId: ts.id,
+          orderIndex: ts.orderIndex,
+          title: ts.title,
+          description: ts.description,
+        },
+      });
+
+      const templateTasks = await prisma.templateTask.findMany({
+        where: { stepId: ts.id },
+        orderBy: { orderIndex: 'asc' },
+      });
+
+      for (const tt of templateTasks) {
+        const taskId = wsTaskIdCounter++;
+        await prisma.workspaceTask.upsert({
+          where: { id: taskId },
+          update: {
+            workspaceStepId: newWsStep.id,
+            templateTaskId: tt.id,
+            title: tt.title,
+            description: tt.description,
+          },
+          create: {
+            id: taskId,
+            workspaceStepId: newWsStep.id,
+            templateTaskId: tt.id,
+            title: tt.title,
+            description: tt.description,
+          },
+        });
+      }
+
+      const passed = status === 'PASSED';
+      const opened = status === 'OPEN' || status === 'NEEDS_WORK' || passed;
+      await prisma.stepProgress.upsert({
+        where: { workspaceStepId: newWsStep.id },
+        update: {
+          status,
+          resubmissionCount: status === 'NEEDS_WORK' ? 1 : 0,
+          unlockedAt: opened ? new Date() : null,
+          passedAt: passed ? new Date() : null,
+        },
+        create: {
+          workspaceStepId: newWsStep.id,
+          status,
+          resubmissionCount: status === 'NEEDS_WORK' ? 1 : 0,
+          unlockedAt: opened ? new Date() : null,
+          passedAt: passed ? new Date() : null,
+        },
+      });
+
+      if (opened) {
+        const enrollment = await prisma.enrollment.findUnique({ where: { id: enrollmentId } });
+        if (enrollment) {
+          const subId = 1000 + newWsStep.id;
+          const subStatus = passed ? 'PASSED' : status === 'NEEDS_WORK' ? 'NEEDS_WORK' : 'EVALUATING';
+          const sub = await prisma.submission.upsert({
+            where: { id: subId },
+            update: {
+              workspaceStepId: newWsStep.id,
+              studentId: enrollment.studentId,
+              payloadUrl: `https://github.com/engineersclinic/capstone-step-${newWsStep.id}-submission`,
+              status: subStatus,
+              attemptIndex: status === 'NEEDS_WORK' ? 2 : 1,
+            },
+            create: {
+              id: subId,
+              workspaceStepId: newWsStep.id,
+              studentId: enrollment.studentId,
+              payloadUrl: `https://github.com/engineersclinic/capstone-step-${newWsStep.id}-submission`,
+              status: subStatus,
+              attemptIndex: status === 'NEEDS_WORK' ? 2 : 1,
+            },
+          });
+
+          if (passed || status === 'NEEDS_WORK') {
+            const score = passed ? (85 + (newWsStep.id % 10)) : 45;
+            await prisma.aiReview.upsert({
+              where: { submissionId: sub.id },
+              update: {
+                score,
+                maxScore: 100,
+                passed,
+                criteriaBreakdown: [
+                  { criterion: 'Architecture Cleanliness', score: passed ? 45 : 20, maxScore: 50 },
+                  { criterion: 'Code Quality & Unit Tests', score: passed ? (score - 45) : 25, maxScore: 50 },
+                ],
+                feedback: passed
+                  ? 'Clean API controller isolation and zero lint errors across all microservice routes.'
+                  : 'Unit tests failed for edge case handling. Please fix failing assertions and resubmit.',
+                improvements: passed ? 'Consider adding Redis caching for hot paths.' : 'Fix broken unit test specs in test/suite.spec.ts',
+              },
+              create: {
+                submissionId: sub.id,
+                score,
+                maxScore: 100,
+                passed,
+                criteriaBreakdown: [
+                  { criterion: 'Architecture Cleanliness', score: passed ? 45 : 20, maxScore: 50 },
+                  { criterion: 'Code Quality & Unit Tests', score: passed ? (score - 45) : 25, maxScore: 50 },
+                ],
+                feedback: passed
+                  ? 'Clean API controller isolation and zero lint errors across all microservice routes.'
+                  : 'Unit tests failed for edge case handling. Please fix failing assertions and resubmit.',
+                improvements: passed ? 'Consider adding Redis caching for hot paths.' : 'Fix broken unit test specs in test/suite.spec.ts',
+              },
+            });
+          }
+        }
+      }
+    }
+  }
+
+  for (const su of scenarioUsers) {
+    await prisma.user.upsert({
+      where: { id: su.id },
+      update: { email: su.email, password: hashedPassword, phoneNo: '98765432' + su.id, roleId: 4, countryId: 1, status: 'active' },
+      create: { id: su.id, email: su.email, password: hashedPassword, phoneNo: '98765432' + su.id, roleId: 4, countryId: 1, status: 'active' },
+    });
+    await prisma.student.upsert({
+      where: { userid: su.id },
+      update: { firstName: su.firstName, lastName: su.lastName, collegeId: su.collegeId },
+      create: { userid: su.id, firstName: su.firstName, lastName: su.lastName, collegeId: su.collegeId },
+    });
+  }
+
+  // Priya: Cybersecurity Incident Response (Program 6)
+  const priyaEnrollment = await prisma.enrollment.upsert({
+    where: { id: 2 },
+    update: { studentId: 5, programId: 6, status: 'ACTIVE' },
+    create: { id: 2, studentId: 5, programId: 6, status: 'ACTIVE' },
   });
-  console.log('  ✅ Enrollment, StudentWorkspace, WorkspaceStep, WorkspaceTask, and StepProgress seeded');
+  await seedStudentWorkspace(priyaEnrollment.id, 11, 1, ['PASSED', 'OPEN', 'LOCKED']);
+  await seedStudentWorkspace(priyaEnrollment.id, 12, 2, ['OPEN', 'LOCKED', 'LOCKED']);
+
+  // Vikram: MULTIPLE programs (Cloud Infrastructure + Full Stack)
+  const vikramP1 = await prisma.enrollment.upsert({
+    where: { id: 3 },
+    update: { studentId: 6, programId: 8, status: 'ACTIVE' },
+    create: { id: 3, studentId: 6, programId: 8, status: 'ACTIVE' },
+  });
+  await seedStudentWorkspace(vikramP1.id, 15, 1, ['PASSED', 'PASSED', 'OPEN']);
+  await seedStudentWorkspace(vikramP1.id, 16, 2, ['PASSED', 'OPEN', 'LOCKED']);
+
+  const vikramP2 = await prisma.enrollment.upsert({
+    where: { id: 4 },
+    update: { studentId: 6, programId: 1, status: 'ACTIVE' },
+    create: { id: 4, studentId: 6, programId: 1, status: 'ACTIVE' },
+  });
+  await seedStudentWorkspace(vikramP2.id, 1, 1, ['OPEN', 'LOCKED']);
+  await seedStudentWorkspace(vikramP2.id, 2, 2, ['LOCKED', 'LOCKED']);
+
+  // Kavya: Embedded Systems & Smart IoT Sensor Gateway (Program 7), ALL steps COMPLETED
+  const kavyaEnrollment = await prisma.enrollment.upsert({
+    where: { id: 5 },
+    update: { studentId: 7, programId: 7, status: 'COMPLETED', completedAt: new Date() },
+    create: { id: 5, studentId: 7, programId: 7, status: 'COMPLETED', completedAt: new Date() },
+  });
+  await seedStudentWorkspace(kavyaEnrollment.id, 13, 1, ['PASSED', 'PASSED', 'PASSED']);
+  await seedStudentWorkspace(kavyaEnrollment.id, 14, 2, ['PASSED', 'PASSED', 'PASSED']);
+  console.log('  ✅ Scenario students seeded with distinct programs: Priya (Cybersecurity), Vikram (Cloud + Fullstack), Kavya (IoT Completed)');
 
   await prisma.$disconnect();
   console.log('✨ GRANULAR RESOURCE-ACTION PERMISSIONS SEEDED SUCCESSFULLY!');
