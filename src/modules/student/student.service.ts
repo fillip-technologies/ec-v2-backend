@@ -166,6 +166,7 @@ export class StudentService {
     }
 
     return {
+      firstName: student.firstName,
       programTitle: enrollment.program.title,
       programSlug: enrollment.program.slug,
       metrics: {
@@ -280,13 +281,19 @@ export class StudentService {
         const stepCount = projSteps.length || 1;
         const hoursPerStep = hoursPerProject / stepCount;
 
-        let projPassedSteps = 0;
+        // Directly read stored database project status (DONE, ACTIVE, LOCKED)
+        const projectStatus = ep.status === 'DONE' ? 'Done' : ep.status === 'ACTIVE' ? 'Active' : 'Locked';
+
+        if (ep.status === 'DONE') {
+          completedProjectsCount++;
+        }
+
         const formattedSteps = projSteps.map((st) => {
           totalWorkspaceSteps++;
-          const isStepPassed = st.progress?.status === 'PASSED';
-          if (isStepPassed) {
+          // Directly read stored database step status (PASSED, OPEN, NEEDS_WORK, LOCKED)
+          const storedStepStatus = st.progress?.status || 'LOCKED';
+          if (storedStepStatus === 'PASSED') {
             passedWorkspaceSteps++;
-            projPassedSteps++;
             hoursLogged += hoursPerStep;
           }
 
@@ -295,7 +302,7 @@ export class StudentService {
             title: st.title,
             description: st.description,
             orderIndex: st.orderIndex,
-            status: st.progress?.status || 'LOCKED',
+            status: storedStepStatus,
             tasks: st.tasks.map((t) => ({
               id: t.id,
               title: t.title,
@@ -305,16 +312,12 @@ export class StudentService {
           };
         });
 
-        const isDone = stepCount > 0 && projPassedSteps === stepCount;
-        if (isDone) {
-          completedProjectsCount++;
-        }
-
         return {
           id: ep.project.id,
           title: ep.project.title,
           description: ep.project.description,
           orderIndex: ep.orderIndex,
+          status: projectStatus,
           workspaceTemplate: {
             id: ep.workspace?.workspaceTemplateId || ep.project.id,
             version: ep.workspace?.templateVersion || 1,
@@ -491,7 +494,7 @@ export class StudentService {
       },
     });
 
-    // Update StepProgress status
+    // Update current StepProgress status
     await this.prisma.stepProgress.upsert({
       where: { workspaceStepId: dto.workspaceStepId },
       update: {
@@ -507,6 +510,73 @@ export class StudentService {
         passedAt: passed ? new Date() : null,
       },
     });
+
+    // If step passed, advance DB state for next step & project
+    if (passed) {
+      const studentWorkspaceId = step.studentWorkspaceId;
+      const currentOrderIndex = step.orderIndex;
+
+      // 1. Find next step in current workspace
+      const nextStep = await this.prisma.workspaceStep.findFirst({
+        where: {
+          studentWorkspaceId,
+          orderIndex: { gt: currentOrderIndex },
+        },
+        orderBy: { orderIndex: 'asc' },
+      });
+
+      if (nextStep) {
+        // Unlock next step in DB
+        await this.prisma.stepProgress.upsert({
+          where: { workspaceStepId: nextStep.id },
+          update: { status: 'OPEN', unlockedAt: new Date() },
+          create: { workspaceStepId: nextStep.id, status: 'OPEN', unlockedAt: new Date() },
+        });
+      } else {
+        // All steps in this project passed -> mark EnrollmentProject as DONE
+        const currentEpId = step.studentWorkspace.enrollmentProjectId;
+        const currentEnrollmentId = step.studentWorkspace.enrollmentProject.enrollmentId;
+        const currentProjectOrder = step.studentWorkspace.enrollmentProject.orderIndex;
+
+        await this.prisma.enrollmentProject.update({
+          where: { id: currentEpId },
+          data: { status: 'DONE' },
+        });
+
+        // Unlock next EnrollmentProject as ACTIVE
+        const nextEp = await this.prisma.enrollmentProject.findFirst({
+          where: {
+            enrollmentId: currentEnrollmentId,
+            orderIndex: { gt: currentProjectOrder },
+          },
+          orderBy: { orderIndex: 'asc' },
+          include: {
+            workspace: {
+              include: {
+                steps: { orderBy: { orderIndex: 'asc' }, take: 1 },
+              },
+            },
+          },
+        });
+
+        if (nextEp) {
+          await this.prisma.enrollmentProject.update({
+            where: { id: nextEp.id },
+            data: { status: 'ACTIVE' },
+          });
+
+          // Unlock 1st step of next project
+          const nextProjFirstStep = nextEp.workspace?.steps?.[0];
+          if (nextProjFirstStep) {
+            await this.prisma.stepProgress.upsert({
+              where: { workspaceStepId: nextProjFirstStep.id },
+              update: { status: 'OPEN', unlockedAt: new Date() },
+              create: { workspaceStepId: nextProjFirstStep.id, status: 'OPEN', unlockedAt: new Date() },
+            });
+          }
+        }
+      }
+    }
 
     return {
       submissionId: submission.id,

@@ -761,9 +761,9 @@ async function main() {
   let wsStepIdCounter = 1;
   let wsTaskIdCounter = 1;
 
-  await seedStudentWorkspace(enrollment.id, 1, 1, ['PASSED', 'PASSED']);
-  await seedStudentWorkspace(enrollment.id, 2, 2, ['OPEN', 'LOCKED']);
-  await seedStudentWorkspace(enrollment.id, 3, 3, ['LOCKED', 'LOCKED']);
+  await seedStudentWorkspace(enrollment.id, 1, 1, ['PASSED', 'PASSED', 'PASSED']);
+  await seedStudentWorkspace(enrollment.id, 2, 2, ['PASSED', 'OPEN', 'LOCKED']);
+  await seedStudentWorkspace(enrollment.id, 3, 3, ['LOCKED', 'LOCKED', 'LOCKED']);
   console.log('  ✅ Default Enrollment 1 seeded with 3 Capstone Projects (Project 1 Passed, Project 2 Active, Project 3 Locked)');
 
   console.log('🌱 Seeding Scenario Diversity (single, multi, partial, completed)...');
@@ -780,12 +780,16 @@ async function main() {
     orderIndex: number,
     stepStatuses: Array<'LOCKED' | 'OPEN' | 'PASSED' | 'NEEDS_WORK'>,
   ) {
+    const allPassed = stepStatuses.length > 0 && stepStatuses.every((s) => s === 'PASSED');
+    const anyActive = stepStatuses.some((s) => s === 'OPEN' || s === 'NEEDS_WORK' || s === 'PASSED');
+    const projectStatus = allPassed ? 'DONE' : anyActive ? 'ACTIVE' : 'LOCKED';
+
     const ep = await prisma.enrollmentProject.upsert({
       where: {
         enrollmentId_projectId: { enrollmentId, projectId },
       },
-      update: { orderIndex },
-      create: { enrollmentId, projectId, orderIndex },
+      update: { orderIndex, status: projectStatus },
+      create: { enrollmentId, projectId, orderIndex, status: projectStatus },
     });
 
     await prisma.studentWorkspace.upsert({
