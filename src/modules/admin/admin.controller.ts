@@ -117,7 +117,7 @@ export class AdminController {
   @Patch('submissions/:id/review')
   async reviewSubmission(
     @Param('id', ParseIntPipe) id: number,
-    @Body() body: { status: 'PASSED' | 'NEEDS_WORK'; score?: number; feedback?: string },
+    @Body() body: { status: 'PASSED' | 'NEEDS_WORK' | 'EVALUATING'; score?: number; feedback?: string },
   ) {
     return this.adminService.reviewSubmission(
       id,

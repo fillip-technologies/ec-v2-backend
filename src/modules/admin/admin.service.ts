@@ -237,6 +237,11 @@ export class AdminService {
                 },
               },
             },
+            templateTask: {
+              include: {
+                rubric: true,
+              },
+            },
           },
         },
         aiReview: true,
@@ -244,24 +249,48 @@ export class AdminService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return submissions.map((s) => ({
-      id: s.id,
-      studentName: `${s.student.firstName} ${s.student.lastName}`.trim(),
-      studentEmail: s.student.user.email,
-      projectTitle: s.workspaceTask.studentWorkspace.enrollmentProject.project.title,
-      taskTitle: s.workspaceTask.title,
-      payloadUrl: s.payloadUrl,
-      status: s.status,
-      submittedAt: s.createdAt,
-      workspaceTaskId: s.workspaceTaskId,
-    }));
+    return submissions.map((s) => {
+      const rubric = s.workspaceTask?.templateTask?.rubric;
+      const maxScore = rubric?.maxScore ?? s.aiReview?.maxScore ?? 100;
+      const passThreshold = rubric?.passThreshold ?? 60;
+
+      let criteria: any[] = [];
+      if (rubric?.criteria) {
+        if (typeof rubric.criteria === 'string') {
+          try {
+            criteria = JSON.parse(rubric.criteria);
+          } catch {
+            criteria = [];
+          }
+        } else if (Array.isArray(rubric.criteria)) {
+          criteria = rubric.criteria as any[];
+        }
+      }
+
+      return {
+        id: s.id,
+        studentName: `${s.student.firstName} ${s.student.lastName}`.trim(),
+        studentEmail: s.student.user.email,
+        projectTitle: s.workspaceTask.studentWorkspace.enrollmentProject.project.title,
+        taskTitle: s.workspaceTask.title,
+        payloadUrl: s.payloadUrl,
+        status: s.status,
+        submittedAt: s.createdAt,
+        workspaceTaskId: s.workspaceTaskId,
+        score: s.aiReview?.score ?? null,
+        feedback: s.aiReview?.feedback ?? null,
+        maxScore,
+        passThreshold,
+        criteria,
+      };
+    });
   }
 
   /**
    * PATCH /admin/submissions/:id/review
    * Approve or reject a student submission
    */
-  async reviewSubmission(id: number, status: 'PASSED' | 'NEEDS_WORK', score: number, feedback: string) {
+  async reviewSubmission(id: number, status: 'PASSED' | 'NEEDS_WORK' | 'EVALUATING', score: number, feedback: string) {
     const submission = await this.prisma.submission.findUnique({
       where: { id },
       include: {
@@ -272,9 +301,15 @@ export class AdminService {
                 enrollmentProject: true,
               },
             },
+            templateTask: {
+              include: {
+                rubric: true,
+              },
+            },
             progress: true,
           },
         },
+        aiReview: true,
       },
     });
 
@@ -282,29 +317,52 @@ export class AdminService {
       throw new NotFoundException(`Submission ID ${id} not found`);
     }
 
+    const rubric = submission.workspaceTask?.templateTask?.rubric;
+    const maxScore = rubric?.maxScore ?? 100;
+    const passThreshold = rubric?.passThreshold ?? 60;
+    const clampedScore = Math.max(0, Math.min(score, maxScore));
+
     // 1. Update submission status
     const updatedSub = await this.prisma.submission.update({
       where: { id },
       data: { status },
     });
 
+    if (status === 'EVALUATING') {
+      await this.prisma.taskProgress.upsert({
+        where: { workspaceTaskId: submission.workspaceTaskId },
+        update: {
+          status: 'OPEN',
+          passedAt: null,
+        },
+        create: {
+          workspaceTaskId: submission.workspaceTaskId,
+          status: 'OPEN',
+        },
+      });
+      return { success: true, submission: updatedSub };
+    }
+
     // 2. Create AI review / manual review entry
     const passed = status === 'PASSED';
     await this.prisma.aiReview.upsert({
       where: { submissionId: id },
       update: {
-        score,
+        score: clampedScore,
+        maxScore,
         passed,
         feedback,
       },
       create: {
         submissionId: id,
-        score,
-        maxScore: 100,
+        score: clampedScore,
+        maxScore,
         passed,
-        criteriaBreakdown: JSON.stringify([
-          { criterion: 'Manual Verification', score, maxScore: 100 },
-        ]),
+        criteriaBreakdown: rubric?.criteria
+          ? (typeof rubric.criteria === 'string' ? rubric.criteria : JSON.stringify(rubric.criteria))
+          : JSON.stringify([
+              { criterion: 'Manual Verification', score: clampedScore, maxScore },
+            ]),
         feedback,
       },
     });
