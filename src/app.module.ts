@@ -7,6 +7,8 @@ import { AuthModule } from './modules/auth/auth.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { CountriesModule } from './modules/countries/countries.module';
 import { StudentModule } from './modules/student/student.module';
+import { AdminModule } from './modules/admin/admin.module';
+import { CollegeModule } from './modules/college/college.module';
 
 @Module({
   imports: [
@@ -16,8 +18,11 @@ import { StudentModule } from './modules/student/student.module';
     CatalogModule,
     CountriesModule,
     StudentModule,
+    AdminModule,
+    CollegeModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule {}
+

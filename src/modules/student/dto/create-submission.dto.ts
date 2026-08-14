@@ -3,7 +3,7 @@ import { IsNotEmpty, IsNumber, IsString, IsUrl } from 'class-validator';
 export class CreateSubmissionDto {
   @IsNumber()
   @IsNotEmpty()
-  workspaceStepId: number;
+  workspaceTaskId: number;
 
   @IsString()
   @IsNotEmpty()

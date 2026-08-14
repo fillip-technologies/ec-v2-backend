@@ -43,7 +43,7 @@ export class StudentService {
             project: true,
             workspace: {
               include: {
-                steps: {
+                tasks: {
                   orderBy: { orderIndex: 'asc' },
                   include: {
                     progress: true,
@@ -83,27 +83,27 @@ export class StudentService {
     const totalProjects = selectedProjects.length || 3;
     const hoursPerProject = totalProgramHours / (totalProjects || 1);
 
-    let totalWorkspaceSteps = 0;
-    let passedWorkspaceSteps = 0;
+    let totalWorkspaceTasks = 0;
+    let passedWorkspaceTasks = 0;
     let hoursLogged = 0;
     let completedProjectsCount = 0;
 
     const projectTracks = selectedProjects.map((ep, pIdx) => {
-      const projSteps = ep.workspace?.steps || [];
-      const stepCount = projSteps.length || 1;
-      const hoursPerStep = hoursPerProject / stepCount;
+      const projTasks = ep.workspace?.tasks || [];
+      const taskCount = projTasks.length || 1;
+      const hoursPerTask = hoursPerProject / taskCount;
 
-      let projPassedSteps = 0;
-      projSteps.forEach((st) => {
-        totalWorkspaceSteps++;
-        if (st.progress?.status === 'PASSED') {
-          passedWorkspaceSteps++;
-          projPassedSteps++;
-          hoursLogged += hoursPerStep;
+      let projPassedTasks = 0;
+      projTasks.forEach((t) => {
+        totalWorkspaceTasks++;
+        if (t.progress?.status === 'PASSED') {
+          passedWorkspaceTasks++;
+          projPassedTasks++;
+          hoursLogged += hoursPerTask;
         }
       });
 
-      const isDone = stepCount > 0 && projPassedSteps === stepCount;
+      const isDone = taskCount > 0 && projPassedTasks === taskCount;
       if (isDone) {
         completedProjectsCount++;
       }
@@ -111,7 +111,7 @@ export class StudentService {
       let status = 'Locked';
       if (isDone) {
         status = 'Done';
-      } else if (pIdx === 0 || (pIdx > 0 && selectedProjects[pIdx - 1]?.workspace?.steps.every((s) => s.progress?.status === 'PASSED'))) {
+      } else if (pIdx === 0 || (pIdx > 0 && selectedProjects[pIdx - 1]?.workspace?.tasks.every((t) => t.progress?.status === 'PASSED'))) {
         status = 'Active';
       }
 
@@ -126,8 +126,8 @@ export class StudentService {
     });
 
     const roundedHoursLogged = Math.round(hoursLogged);
-    const completionPercentage = totalWorkspaceSteps > 0
-      ? Math.round((passedWorkspaceSteps / totalWorkspaceSteps) * 100)
+    const completionPercentage = totalWorkspaceTasks > 0
+      ? Math.round((passedWorkspaceTasks / totalWorkspaceTasks) * 100)
       : 0;
 
     // Submissions & AI Reviews metrics
@@ -135,7 +135,7 @@ export class StudentService {
       where: { studentId: userId },
       include: {
         aiReview: true,
-        workspaceStep: true,
+        workspaceTask: true,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -155,7 +155,8 @@ export class StudentService {
     if (latestAiReviewSubmission && latestAiReviewSubmission.aiReview) {
       const r = latestAiReviewSubmission.aiReview;
       recentAiReview = {
-        stepTitle: latestAiReviewSubmission.workspaceStep.title,
+        taskTitle: latestAiReviewSubmission.workspaceTask.title,
+        stepTitle: latestAiReviewSubmission.workspaceTask.title,
         status: latestAiReviewSubmission.status,
         score: r.score,
         maxScore: r.maxScore,
@@ -243,16 +244,12 @@ export class StudentService {
             project: true,
             workspace: {
               include: {
-                steps: {
+                tasks: {
                   orderBy: { orderIndex: 'asc' },
                   include: {
-                    tasks: {
+                    templateTask: {
                       include: {
-                        templateTask: {
-                          include: {
-                            resources: true,
-                          },
-                        },
+                        resources: true,
                       },
                     },
                     progress: true,
@@ -271,15 +268,15 @@ export class StudentService {
       const totalProjects = selectedProjects.length || 3;
       const hoursPerProject = totalProgramHours / (totalProjects || 1);
 
-      let totalWorkspaceSteps = 0;
-      let passedWorkspaceSteps = 0;
+      let totalWorkspaceTasks = 0;
+      let passedWorkspaceTasks = 0;
       let hoursLogged = 0;
       let completedProjectsCount = 0;
 
       const formattedProjects = selectedProjects.map((ep, pIdx) => {
-        const projSteps = ep.workspace?.steps || [];
-        const stepCount = projSteps.length || 1;
-        const hoursPerStep = hoursPerProject / stepCount;
+        const projTasks = ep.workspace?.tasks || [];
+        const taskCount = projTasks.length || 1;
+        const hoursPerTask = hoursPerProject / taskCount;
 
         // Directly read stored database project status (DONE, ACTIVE, LOCKED)
         const projectStatus = ep.status === 'DONE' ? 'Done' : ep.status === 'ACTIVE' ? 'Active' : 'Locked';
@@ -288,27 +285,22 @@ export class StudentService {
           completedProjectsCount++;
         }
 
-        const formattedSteps = projSteps.map((st) => {
-          totalWorkspaceSteps++;
-          // Directly read stored database step status (PASSED, OPEN, NEEDS_WORK, LOCKED)
-          const storedStepStatus = st.progress?.status || 'LOCKED';
-          if (storedStepStatus === 'PASSED') {
-            passedWorkspaceSteps++;
-            hoursLogged += hoursPerStep;
+        const formattedTasks = projTasks.map((t) => {
+          totalWorkspaceTasks++;
+          // Directly read stored database task status (PASSED, OPEN, NEEDS_WORK, LOCKED)
+          const storedTaskStatus = t.progress?.status || 'LOCKED';
+          if (storedTaskStatus === 'PASSED') {
+            passedWorkspaceTasks++;
+            hoursLogged += hoursPerTask;
           }
 
           return {
-            id: st.id,
-            title: st.title,
-            description: st.description,
-            orderIndex: st.orderIndex,
-            status: storedStepStatus,
-            tasks: st.tasks.map((t) => ({
-              id: t.id,
-              title: t.title,
-              description: t.description,
-              resources: t.templateTask?.resources || [],
-            })),
+            id: t.id,
+            title: t.title,
+            description: t.description,
+            orderIndex: t.orderIndex,
+            status: storedTaskStatus,
+            resources: t.templateTask?.resources || [],
           };
         });
 
@@ -321,14 +313,14 @@ export class StudentService {
           workspaceTemplate: {
             id: ep.workspace?.workspaceTemplateId || ep.project.id,
             version: ep.workspace?.templateVersion || 1,
-            steps: formattedSteps,
+            tasks: formattedTasks,
           },
         };
       });
 
       const clusterName = enrollment.program.topics?.[0]?.topic?.cluster?.name || 'Engineering Stream';
-      const completionPercentage = totalWorkspaceSteps > 0
-        ? Math.round((passedWorkspaceSteps / totalWorkspaceSteps) * 100)
+      const completionPercentage = totalWorkspaceTasks > 0
+        ? Math.round((passedWorkspaceTasks / totalWorkspaceTasks) * 100)
         : 0;
 
       return {
@@ -370,12 +362,11 @@ export class StudentService {
             },
             workspace: {
               include: {
-                steps: {
+                tasks: {
                   orderBy: { orderIndex: 'asc' },
                   include: {
-                    tasks: true,
                     progress: true,
-                    templateStep: {
+                    templateTask: {
                       include: {
                         rubric: true,
                         resources: true,
@@ -404,7 +395,7 @@ export class StudentService {
     const submissions = await this.prisma.submission.findMany({
       where: { studentId: userId },
       include: {
-        workspaceStep: true,
+        workspaceTask: true,
         aiReview: true,
       },
       orderBy: { createdAt: 'desc' },
@@ -412,8 +403,10 @@ export class StudentService {
 
     return submissions.map((sub) => ({
       id: sub.id,
-      workspaceStepId: sub.workspaceStepId,
-      stepTitle: sub.workspaceStep.title,
+      workspaceTaskId: sub.workspaceTaskId,
+      workspaceStepId: sub.workspaceTaskId,
+      taskTitle: sub.workspaceTask.title,
+      stepTitle: sub.workspaceTask.title,
       submittedAt: sub.createdAt,
       status: sub.status,
       attemptIndex: sub.attemptIndex,
@@ -430,8 +423,8 @@ export class StudentService {
    * Submit deliverable for a workspace step
    */
   async createSubmission(userId: number, dto: CreateSubmissionDto) {
-    const step = await this.prisma.workspaceStep.findUnique({
-      where: { id: dto.workspaceStepId },
+    const task = await this.prisma.workspaceTask.findUnique({
+      where: { id: dto.workspaceTaskId },
       include: {
         studentWorkspace: {
           include: {
@@ -443,7 +436,7 @@ export class StudentService {
           },
         },
         progress: true,
-        templateStep: {
+        templateTask: {
           include: {
             rubric: true,
           },
@@ -451,140 +444,46 @@ export class StudentService {
       },
     });
 
-    if (!step) {
-      throw new NotFoundException(`Workspace step ID ${dto.workspaceStepId} not found`);
+    if (!task) {
+      throw new NotFoundException(`Workspace task ID ${dto.workspaceTaskId} not found`);
     }
 
-    const stepStudentId = step.studentWorkspace.enrollmentProject.enrollment.studentId;
-    if (stepStudentId !== userId) {
-      throw new ForbiddenException('You do not have permission to submit to this workspace step');
+    const taskStudentId = task.studentWorkspace.enrollmentProject.enrollment.studentId;
+    if (taskStudentId !== userId) {
+      throw new ForbiddenException('You do not have permission to submit to this workspace task');
     }
 
-    const currentResubmissionCount = step.progress?.resubmissionCount || 0;
+    const currentResubmissionCount = task.progress?.resubmissionCount || 0;
     if (currentResubmissionCount >= 5) {
-      throw new BadRequestException('Resubmission limit reached (5 attempts max). Step routed to manual mentor review.');
+      throw new BadRequestException('Resubmission limit reached (5 attempts max). Task routed to manual mentor review.');
     }
 
     const submission = await this.prisma.submission.create({
       data: {
-        workspaceStepId: dto.workspaceStepId,
+        workspaceTaskId: dto.workspaceTaskId,
         studentId: userId,
         payloadUrl: dto.payloadUrl,
-        status: 'PASSED',
+        status: 'EVALUATING',
         attemptIndex: currentResubmissionCount + 1,
       },
     });
 
-    // Auto-grade simulation for demo / evaluation
-    const score = 88;
-    const passed = score >= (step.templateStep.rubric?.passThreshold || 60);
-
-    const aiReview = await this.prisma.aiReview.create({
-      data: {
-        submissionId: submission.id,
-        score,
-        maxScore: 100,
-        passed,
-        criteriaBreakdown: [
-          { criterion: 'Architecture Cleanliness', score: 45, maxScore: 50 },
-          { criterion: 'Code Quality & Unit Tests', score: 43, maxScore: 50 },
-        ],
-        feedback: 'Clean API controller isolation and zero lint errors across all microservice routes.',
-        improvements: 'Consider adding Redis caching for hot paths.',
-      },
-    });
-
-    // Update current StepProgress status
-    await this.prisma.stepProgress.upsert({
-      where: { workspaceStepId: dto.workspaceStepId },
+    // Update current TaskProgress status to MANUAL_REVIEW (pending admin evaluation)
+    await this.prisma.taskProgress.upsert({
+      where: { workspaceTaskId: dto.workspaceTaskId },
       update: {
-        status: passed ? 'PASSED' : 'NEEDS_WORK',
+        status: 'MANUAL_REVIEW',
         resubmissionCount: currentResubmissionCount + 1,
-        passedAt: passed ? new Date() : null,
       },
       create: {
-        workspaceStepId: dto.workspaceStepId,
-        status: passed ? 'PASSED' : 'NEEDS_WORK',
+        workspaceTaskId: dto.workspaceTaskId,
+        status: 'MANUAL_REVIEW',
         resubmissionCount: currentResubmissionCount + 1,
         unlockedAt: new Date(),
-        passedAt: passed ? new Date() : null,
       },
     });
 
-    // If step passed, advance DB state for next step & project
-    if (passed) {
-      const studentWorkspaceId = step.studentWorkspaceId;
-      const currentOrderIndex = step.orderIndex;
-
-      // 1. Find next step in current workspace
-      const nextStep = await this.prisma.workspaceStep.findFirst({
-        where: {
-          studentWorkspaceId,
-          orderIndex: { gt: currentOrderIndex },
-        },
-        orderBy: { orderIndex: 'asc' },
-      });
-
-      if (nextStep) {
-        // Unlock next step in DB
-        await this.prisma.stepProgress.upsert({
-          where: { workspaceStepId: nextStep.id },
-          update: { status: 'OPEN', unlockedAt: new Date() },
-          create: { workspaceStepId: nextStep.id, status: 'OPEN', unlockedAt: new Date() },
-        });
-      } else {
-        // All steps in this project passed -> mark EnrollmentProject as DONE
-        const currentEpId = step.studentWorkspace.enrollmentProjectId;
-        const currentEnrollmentId = step.studentWorkspace.enrollmentProject.enrollmentId;
-        const currentProjectOrder = step.studentWorkspace.enrollmentProject.orderIndex;
-
-        await this.prisma.enrollmentProject.update({
-          where: { id: currentEpId },
-          data: { status: 'DONE' },
-        });
-
-        // Unlock next EnrollmentProject as ACTIVE
-        const nextEp = await this.prisma.enrollmentProject.findFirst({
-          where: {
-            enrollmentId: currentEnrollmentId,
-            orderIndex: { gt: currentProjectOrder },
-          },
-          orderBy: { orderIndex: 'asc' },
-          include: {
-            workspace: {
-              include: {
-                steps: { orderBy: { orderIndex: 'asc' }, take: 1 },
-              },
-            },
-          },
-        });
-
-        if (nextEp) {
-          await this.prisma.enrollmentProject.update({
-            where: { id: nextEp.id },
-            data: { status: 'ACTIVE' },
-          });
-
-          // Unlock 1st step of next project
-          const nextProjFirstStep = nextEp.workspace?.steps?.[0];
-          if (nextProjFirstStep) {
-            await this.prisma.stepProgress.upsert({
-              where: { workspaceStepId: nextProjFirstStep.id },
-              update: { status: 'OPEN', unlockedAt: new Date() },
-              create: { workspaceStepId: nextProjFirstStep.id, status: 'OPEN', unlockedAt: new Date() },
-            });
-          }
-        }
-      }
-    }
-
-    return {
-      submissionId: submission.id,
-      status: submission.status,
-      score: aiReview.score,
-      passed,
-      aiReview,
-    };
+    return submission;
   }
 
   /**
@@ -599,9 +498,9 @@ export class StudentService {
           include: {
             workspace: {
               include: {
-                steps: {
+                tasks: {
                   include: {
-                    templateStep: {
+                    templateTask: {
                       include: {
                         rubric: true,
                       },
@@ -627,13 +526,13 @@ export class StudentService {
     }> = [];
 
     enrollment.selectedProjects.forEach((ep) => {
-      ep.workspace?.steps.forEach((st) => {
-        if (st.templateStep.rubric) {
+      ep.workspace?.tasks.forEach((t) => {
+        if (t.templateTask.rubric) {
           rubricsList.push({
-            stepId: st.id,
-            stepTitle: st.title,
-            passThreshold: st.templateStep.rubric.passThreshold,
-            criteria: st.templateStep.rubric.criteria,
+            stepId: t.id,
+            stepTitle: t.title,
+            passThreshold: t.templateTask.rubric.passThreshold,
+            criteria: t.templateTask.rubric.criteria,
           });
         }
       });

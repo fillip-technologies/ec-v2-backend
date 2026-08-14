@@ -1,8 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../../prisma/prisma.service';
 import { CreateWorkspaceTemplateDto } from './dto/create-workspace-template.dto';
-import { CreateTemplateStepDto } from './dto/create-template-step.dto';
-import { UpdateTemplateStepDto } from './dto/update-template-step.dto';
 import { CreateTemplateTaskDto } from './dto/create-template-task.dto';
 import { UpdateTemplateTaskDto } from './dto/update-template-task.dto';
 
@@ -18,18 +16,12 @@ export class TemplatesService {
       where: { projectId },
       include: {
         project: true,
-        steps: {
-          include: {
-            tasks: {
-              orderBy: { orderIndex: 'asc' },
-              include: {
-                resources: true,
-              },
-            },
-            rubric: true,
-            resources: true,
-          },
+        tasks: {
           orderBy: { orderIndex: 'asc' },
+          include: {
+            resources: true,
+            rubric: true,
+          },
         },
       },
     });
@@ -68,15 +60,10 @@ export class TemplatesService {
       },
       include: {
         project: true,
-        steps: {
+        tasks: {
           include: {
-            tasks: {
-              include: {
-                resources: true,
-              },
-            },
-            rubric: true,
             resources: true,
+            rubric: true,
           },
           orderBy: { orderIndex: 'asc' },
         },
@@ -85,9 +72,9 @@ export class TemplatesService {
   }
 
   /**
-   * Create a new TemplateStep
+   * Create a new TemplateTask
    */
-  async createStep(dto: CreateTemplateStepDto) {
+  async createTask(dto: CreateTemplateTaskDto) {
     const template = await this.prisma.workspaceTemplate.findUnique({
       where: { id: dto.workspaceTemplateId },
     });
@@ -95,78 +82,9 @@ export class TemplatesService {
       throw new NotFoundException(`WorkspaceTemplate ID ${dto.workspaceTemplateId} not found`);
     }
 
-    return this.prisma.templateStep.create({
-      data: {
-        workspaceTemplateId: dto.workspaceTemplateId,
-        orderIndex: dto.orderIndex,
-        title: dto.title.trim(),
-        description: dto.description?.trim(),
-      },
-      include: {
-        tasks: {
-          include: {
-            resources: true,
-          },
-        },
-        rubric: true,
-        resources: true,
-      },
-    });
-  }
-
-  /**
-   * Update an existing TemplateStep
-   */
-  async updateStep(id: number, dto: UpdateTemplateStepDto) {
-    const step = await this.prisma.templateStep.findUnique({ where: { id } });
-    if (!step) {
-      throw new NotFoundException(`TemplateStep ID ${id} not found`);
-    }
-
-    return this.prisma.templateStep.update({
-      where: { id },
-      data: {
-        ...(dto.orderIndex ? { orderIndex: dto.orderIndex } : {}),
-        ...(dto.title ? { title: dto.title.trim() } : {}),
-        ...(dto.description !== undefined ? { description: dto.description?.trim() } : {}),
-      },
-      include: {
-        tasks: {
-          include: {
-            resources: true,
-          },
-        },
-        rubric: true,
-        resources: true,
-      },
-    });
-  }
-
-  /**
-   * Delete a TemplateStep by ID
-   */
-  async removeStep(id: number) {
-    const step = await this.prisma.templateStep.findUnique({ where: { id } });
-    if (!step) {
-      throw new NotFoundException(`TemplateStep ID ${id} not found`);
-    }
-
-    await this.prisma.templateStep.delete({ where: { id } });
-    return { message: `TemplateStep ID ${id} deleted successfully` };
-  }
-
-  /**
-   * Create a new TemplateTask
-   */
-  async createTask(dto: CreateTemplateTaskDto) {
-    const step = await this.prisma.templateStep.findUnique({ where: { id: dto.stepId } });
-    if (!step) {
-      throw new NotFoundException(`TemplateStep ID ${dto.stepId} not found`);
-    }
-
     return this.prisma.templateTask.create({
       data: {
-        stepId: dto.stepId,
+        workspaceTemplateId: dto.workspaceTemplateId,
         orderIndex: dto.orderIndex,
         title: dto.title.trim(),
         description: dto.description?.trim(),

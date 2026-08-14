@@ -629,36 +629,41 @@ async function main() {
         create: { id: projId, projectId: project.id, version: 1, isActive: true },
       });
 
-      // MULTIPLE Steps per Project (3 Steps)
-      for (let sIdx = 1; sIdx <= 3; sIdx++) {
-        const stepId = globalStepCounter++;
+      // MULTIPLE Tasks per Project (6 Tasks)
+      for (let tIdx = 1; tIdx <= 6; tIdx++) {
+        const taskId = globalTaskCounter++;
+        const taskTitle = tIdx === 1
+          ? `Task 1: ${projItem.title} - Architecture & Schema Blueprint`
+          : tIdx === 2
+          ? `Task 2: ${projItem.title} - Core API Route Setup`
+          : tIdx === 3
+          ? `Task 3: ${projItem.title} - Database Integrations`
+          : tIdx === 4
+          ? `Task 4: ${projItem.title} - Controller Core Logic`
+          : tIdx === 5
+          ? `Task 5: ${projItem.title} - Unit & Integration Testing`
+          : `Task 6: ${projItem.title} - CI/CD pipeline Deployment`;
 
-        const stepTitle = sIdx === 1
-          ? `Step 1: ${projItem.title} - Architecture & Schema Blueprint`
-          : sIdx === 2
-          ? `Step 2: ${projItem.title} - Core Microservice Logic Implementation`
-          : `Step 3: ${projItem.title} - Automated Testing & CI/CD Deployment`;
-
-        const step = await prisma.templateStep.upsert({
-          where: { id: stepId },
+        const task = await prisma.templateTask.upsert({
+          where: { id: taskId },
           update: {
             workspaceTemplateId: workspaceTemplate.id,
-            orderIndex: sIdx,
-            title: stepTitle,
-            description: `Execute step ${sIdx} requirements for ${projItem.title}.`,
+            orderIndex: tIdx,
+            title: taskTitle,
+            description: `Complete task ${tIdx} inside environment workspace.`,
           },
           create: {
-            id: stepId,
+            id: taskId,
             workspaceTemplateId: workspaceTemplate.id,
-            orderIndex: sIdx,
-            title: stepTitle,
-            description: `Execute step ${sIdx} requirements for ${projItem.title}.`,
+            orderIndex: tIdx,
+            title: taskTitle,
+            description: `Complete task ${tIdx} inside environment workspace.`,
           },
         });
 
-        // Rubric for Step
+        // Rubric for Task
         await prisma.rubric.upsert({
-          where: { stepId: step.id },
+          where: { taskId: task.id },
           update: {
             version: 1,
             criteria: JSON.stringify([
@@ -669,7 +674,7 @@ async function main() {
             passThreshold: 60,
           },
           create: {
-            stepId: step.id,
+            taskId: task.id,
             version: 1,
             criteria: JSON.stringify([
               { criterion: 'Architecture Cleanliness', maxScore: 50 },
@@ -680,62 +685,38 @@ async function main() {
           },
         });
 
-        // MULTIPLE Tasks per Step (2 Tasks per Step)
-        for (let tIdx = 1; tIdx <= 2; tIdx++) {
-          const taskId = globalTaskCounter++;
-          const taskTitle = `Task ${tIdx}: ${sIdx === 1 ? 'Configure schema' : sIdx === 2 ? 'Implement endpoints' : 'Run unit tests'} for ${projItem.title}`;
+        // MULTIPLE Task Resources per Task (2 Resources per Task)
+        for (let rIdx = 1; rIdx <= 2; rIdx++) {
+          const resId = globalResCounter++;
+          const resTitle = rIdx === 1
+            ? `${projItem.title} - Official API Documentation`
+            : `${projItem.title} - Reference Starter Repo`;
+          const resUrl = rIdx === 1 ? 'https://docs.engineersclinic.com' : 'https://github.com/engineersclinic/starter-repo';
 
-          const task = await prisma.templateTask.upsert({
-            where: { id: taskId },
+          await prisma.resource.upsert({
+            where: { id: resId },
             update: {
-              stepId: step.id,
-              orderIndex: tIdx,
-              title: taskTitle,
-              description: `Complete task ${tIdx} inside step ${sIdx} environment workspace.`,
+              ownerType: 'TASK',
+              taskId: task.id,
+              type: rIdx === 1 ? 'DOCUMENT' : 'REPOSITORY',
+              title: resTitle,
+              url: resUrl,
             },
             create: {
-              id: taskId,
-              stepId: step.id,
-              orderIndex: tIdx,
-              title: taskTitle,
-              description: `Complete task ${tIdx} inside step ${sIdx} environment workspace.`,
+              id: resId,
+              ownerType: 'TASK',
+              taskId: task.id,
+              type: rIdx === 1 ? 'DOCUMENT' : 'REPOSITORY',
+              title: resTitle,
+              url: resUrl,
             },
           });
-
-          // MULTIPLE Task Resources per Task (2 Resources per Task)
-          for (let rIdx = 1; rIdx <= 2; rIdx++) {
-            const resId = globalResCounter++;
-            const resTitle = rIdx === 1
-              ? `${projItem.title} - Official API Documentation`
-              : `${projItem.title} - Reference Starter Repo`;
-            const resUrl = rIdx === 1 ? 'https://docs.engineersclinic.com' : 'https://github.com/engineersclinic/starter-repo';
-
-            await prisma.resource.upsert({
-              where: { id: resId },
-              update: {
-                ownerType: 'TASK',
-                taskId: task.id,
-                type: rIdx === 1 ? 'DOCUMENT' : 'REPOSITORY',
-                title: resTitle,
-                url: resUrl,
-              },
-              create: {
-                id: resId,
-                ownerType: 'TASK',
-                taskId: task.id,
-                type: rIdx === 1 ? 'DOCUMENT' : 'REPOSITORY',
-                title: resTitle,
-                url: resUrl,
-              },
-            });
-          }
         }
       }
     }
   }
 
   console.log('  ✅ Total Seeded Projects: ' + (globalProjCounter - 1));
-  console.log('  ✅ Total Seeded Steps: ' + (globalStepCounter - 1));
   console.log('  ✅ Total Seeded Tasks: ' + (globalTaskCounter - 1));
   console.log('  ✅ Total Seeded Task Resources: ' + (globalResCounter - 1));
   console.log('  ✅ Total Seeded Testimonials: ' + (globalTestimonialCounter - 1));
@@ -745,9 +726,8 @@ async function main() {
   console.log('  🧹 Cleaning stale delivery execution tables...');
   await prisma.aiReview.deleteMany({});
   await prisma.submission.deleteMany({});
-  await prisma.stepProgress.deleteMany({});
+  await prisma.taskProgress.deleteMany({});
   await prisma.workspaceTask.deleteMany({});
-  await prisma.workspaceStep.deleteMany({});
   await prisma.studentWorkspace.deleteMany({});
   await prisma.enrollmentProject.deleteMany({});
   await prisma.enrollment.deleteMany({});
@@ -758,12 +738,11 @@ async function main() {
     create: { id: 1, studentId: student.userid, programId: 1, status: 'ACTIVE' },
   });
 
-  let wsStepIdCounter = 1;
   let wsTaskIdCounter = 1;
 
-  await seedStudentWorkspace(enrollment.id, 1, 1, ['PASSED', 'PASSED', 'PASSED']);
-  await seedStudentWorkspace(enrollment.id, 2, 2, ['PASSED', 'OPEN', 'LOCKED']);
-  await seedStudentWorkspace(enrollment.id, 3, 3, ['LOCKED', 'LOCKED', 'LOCKED']);
+  await seedStudentWorkspace(enrollment.id, 1, 1, ['PASSED', 'PASSED', 'PASSED', 'PASSED', 'PASSED', 'PASSED']);
+  await seedStudentWorkspace(enrollment.id, 2, 2, ['PASSED', 'PASSED', 'PASSED', 'OPEN', 'LOCKED', 'LOCKED']);
+  await seedStudentWorkspace(enrollment.id, 3, 3, ['LOCKED', 'LOCKED', 'LOCKED', 'LOCKED', 'LOCKED', 'LOCKED']);
   console.log('  ✅ Default Enrollment 1 seeded with 3 Capstone Projects (Project 1 Passed, Project 2 Active, Project 3 Locked)');
 
   console.log('🌱 Seeding Scenario Diversity (single, multi, partial, completed)...');
@@ -792,70 +771,45 @@ async function main() {
       create: { enrollmentId, projectId, orderIndex, status: projectStatus },
     });
 
-    await prisma.studentWorkspace.upsert({
+    const workspace = await prisma.studentWorkspace.upsert({
       where: { enrollmentProjectId: ep.id },
       update: { workspaceTemplateId: projectId, templateVersion: 1 },
       create: { enrollmentProjectId: ep.id, workspaceTemplateId: projectId, templateVersion: 1 },
     });
 
-    const templateSteps = await prisma.templateStep.findMany({
-      where: { workspaceTemplateId: projectId },
+    const templateTasks = await prisma.templateTask.findMany({
+      where: { workspaceTemplate: { projectId } },
       orderBy: { orderIndex: 'asc' },
     });
 
-    for (let i = 0; i < templateSteps.length; i++) {
-      const ts = templateSteps[i];
+    for (let i = 0; i < templateTasks.length; i++) {
+      const tt = templateTasks[i];
       const status = stepStatuses[i] ?? 'LOCKED';
-      const stepId = wsStepIdCounter++;
+      const taskId = wsTaskIdCounter++;
 
-      const newWsStep = await prisma.workspaceStep.upsert({
-        where: { id: stepId },
+      const newWsTask = await prisma.workspaceTask.upsert({
+        where: { id: taskId },
         update: {
-          studentWorkspaceId: ep.id,
-          templateStepId: ts.id,
-          orderIndex: ts.orderIndex,
-          title: ts.title,
-          description: ts.description,
+          studentWorkspaceId: workspace.id,
+          templateTaskId: tt.id,
+          orderIndex: tt.orderIndex,
+          title: tt.title,
+          description: tt.description,
         },
         create: {
-          id: stepId,
-          studentWorkspaceId: ep.id,
-          templateStepId: ts.id,
-          orderIndex: ts.orderIndex,
-          title: ts.title,
-          description: ts.description,
+          id: taskId,
+          studentWorkspaceId: workspace.id,
+          templateTaskId: tt.id,
+          orderIndex: tt.orderIndex,
+          title: tt.title,
+          description: tt.description,
         },
       });
-
-      const templateTasks = await prisma.templateTask.findMany({
-        where: { stepId: ts.id },
-        orderBy: { orderIndex: 'asc' },
-      });
-
-      for (const tt of templateTasks) {
-        const taskId = wsTaskIdCounter++;
-        await prisma.workspaceTask.upsert({
-          where: { id: taskId },
-          update: {
-            workspaceStepId: newWsStep.id,
-            templateTaskId: tt.id,
-            title: tt.title,
-            description: tt.description,
-          },
-          create: {
-            id: taskId,
-            workspaceStepId: newWsStep.id,
-            templateTaskId: tt.id,
-            title: tt.title,
-            description: tt.description,
-          },
-        });
-      }
 
       const passed = status === 'PASSED';
       const opened = status === 'OPEN' || status === 'NEEDS_WORK' || passed;
-      await prisma.stepProgress.upsert({
-        where: { workspaceStepId: newWsStep.id },
+      await prisma.taskProgress.upsert({
+        where: { workspaceTaskId: newWsTask.id },
         update: {
           status,
           resubmissionCount: status === 'NEEDS_WORK' ? 1 : 0,
@@ -863,7 +817,7 @@ async function main() {
           passedAt: passed ? new Date() : null,
         },
         create: {
-          workspaceStepId: newWsStep.id,
+          workspaceTaskId: newWsTask.id,
           status,
           resubmissionCount: status === 'NEEDS_WORK' ? 1 : 0,
           unlockedAt: opened ? new Date() : null,
@@ -874,29 +828,29 @@ async function main() {
       if (opened) {
         const enrollment = await prisma.enrollment.findUnique({ where: { id: enrollmentId } });
         if (enrollment) {
-          const subId = 1000 + newWsStep.id;
+          const subId = 1000 + newWsTask.id;
           const subStatus = passed ? 'PASSED' : status === 'NEEDS_WORK' ? 'NEEDS_WORK' : 'EVALUATING';
           const sub = await prisma.submission.upsert({
             where: { id: subId },
             update: {
-              workspaceStepId: newWsStep.id,
+              workspaceTaskId: newWsTask.id,
               studentId: enrollment.studentId,
-              payloadUrl: `https://github.com/engineersclinic/capstone-step-${newWsStep.id}-submission`,
+              payloadUrl: `https://github.com/engineersclinic/capstone-task-${newWsTask.id}-submission`,
               status: subStatus,
               attemptIndex: status === 'NEEDS_WORK' ? 2 : 1,
             },
             create: {
               id: subId,
-              workspaceStepId: newWsStep.id,
+              workspaceTaskId: newWsTask.id,
               studentId: enrollment.studentId,
-              payloadUrl: `https://github.com/engineersclinic/capstone-step-${newWsStep.id}-submission`,
+              payloadUrl: `https://github.com/engineersclinic/capstone-task-${newWsTask.id}-submission`,
               status: subStatus,
               attemptIndex: status === 'NEEDS_WORK' ? 2 : 1,
             },
           });
 
           if (passed || status === 'NEEDS_WORK') {
-            const score = passed ? (85 + (newWsStep.id % 10)) : 45;
+            const score = passed ? (85 + (newWsTask.id % 10)) : 45;
             await prisma.aiReview.upsert({
               where: { submissionId: sub.id },
               update: {

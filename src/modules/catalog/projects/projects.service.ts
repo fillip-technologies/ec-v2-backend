@@ -19,10 +19,10 @@ export class ProjectsService {
         program: true,
         workspaceTemplate: {
           include: {
-            steps: {
+            tasks: {
               include: {
-                tasks: true,
                 rubric: true,
+                resources: true,
               },
               orderBy: { orderIndex: 'asc' },
             },
@@ -44,11 +44,8 @@ export class ProjectsService {
         program: true,
         workspaceTemplate: {
           include: {
-            steps: {
+            tasks: {
               include: {
-                tasks: {
-                  orderBy: { orderIndex: 'asc' },
-                },
                 rubric: true,
                 resources: true,
               },

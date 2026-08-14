@@ -48,17 +48,11 @@ export class ProgramsService {
           resources: true,
           workspaceTemplate: {
             include: {
-              steps: {
+              tasks: {
                 orderBy: { orderIndex: 'asc' as const },
                 include: {
                   resources: true,
                   rubric: true,
-                  tasks: {
-                    orderBy: { orderIndex: 'asc' as const },
-                    include: {
-                      resources: true,
-                    },
-                  },
                 },
               },
             },
@@ -171,6 +165,107 @@ export class ProgramsService {
               },
             }
           : {}),
+        ...(dto.testimonials && dto.testimonials.length > 0
+          ? {
+              testimonials: {
+                create: dto.testimonials.map((t, idx) => ({
+                  authorName: t.authorName.trim(),
+                  authorRole: t.authorRole?.trim() || null,
+                  quote: t.quote.trim(),
+                  rating: t.rating ? Number(t.rating) : 5,
+                  avatarUrl: t.avatarUrl?.trim() || null,
+                  orderIndex: t.orderIndex !== undefined ? t.orderIndex : idx,
+                  isActive: t.isActive !== undefined ? t.isActive : true,
+                })),
+              },
+            }
+          : {}),
+        ...(dto.faqs && dto.faqs.length > 0
+          ? {
+              faqs: {
+                create: dto.faqs.map((f, idx) => ({
+                  question: f.question.trim(),
+                  answer: f.answer.trim(),
+                  orderIndex: f.orderIndex !== undefined ? f.orderIndex : idx,
+                  isActive: f.isActive !== undefined ? f.isActive : true,
+                })),
+              },
+            }
+          : {}),
+        ...(dto.projects && dto.projects.length > 0
+          ? {
+              projects: {
+                create: dto.projects.map((proj, pIdx) => ({
+                  title: proj.title.trim(),
+                  description: proj.description?.trim() || null,
+                  orderIndex: proj.orderIndex !== undefined ? proj.orderIndex : pIdx,
+                  ...(proj.resources && proj.resources.length > 0
+                    ? {
+                        resources: {
+                          create: proj.resources.map((r) => ({
+                            ownerType: 'PROJECT' as const,
+                            type: r.type || 'DOCUMENTATION',
+                            title: r.title.trim(),
+                            url: r.url.trim(),
+                          })),
+                        },
+                      }
+                    : {}),
+                  ...(proj.workspaceTemplate
+                    ? {
+                        workspaceTemplate: {
+                          create: {
+                            version: proj.workspaceTemplate.version || 1,
+                            isActive:
+                              proj.workspaceTemplate.isActive !== undefined
+                                ? proj.workspaceTemplate.isActive
+                                : true,
+                            ...(proj.workspaceTemplate.tasks && proj.workspaceTemplate.tasks.length > 0
+                              ? {
+                                  tasks: {
+                                    create: proj.workspaceTemplate.tasks.map((task, tIdx) => ({
+                                      title: task.title.trim(),
+                                      description: task.description?.trim() || null,
+                                      orderIndex: task.orderIndex !== undefined ? task.orderIndex : tIdx,
+                                      ...(task.rubric
+                                        ? {
+                                            rubric: {
+                                              create: {
+                                                maxScore: task.rubric.maxScore || 100,
+                                                passThreshold: task.rubric.passThreshold || 60,
+                                                criteria: task.rubric.criteria || [
+                                                  { criterion: 'Implementation & Requirements', maxScore: 50 },
+                                                  { criterion: 'Code Quality & Best Practices', maxScore: 30 },
+                                                  { criterion: 'Documentation & Testing', maxScore: 20 },
+                                                ],
+                                              },
+                                            },
+                                          }
+                                        : {}),
+                                      ...(task.resources && task.resources.length > 0
+                                        ? {
+                                            resources: {
+                                              create: task.resources.map((r) => ({
+                                                ownerType: 'TASK' as const,
+                                                type: r.type || 'LINK',
+                                                title: r.title.trim(),
+                                                url: r.url.trim(),
+                                              })),
+                                            },
+                                          }
+                                        : {}),
+                                    })),
+                                  },
+                                }
+                              : {}),
+                          },
+                        },
+                      }
+                    : {}),
+                })),
+              },
+            }
+          : {}),
       },
       include: this.programNestedInclude,
     });
@@ -218,6 +313,141 @@ export class ProgramsService {
           await tx.programTechnology.createMany({
             data: dto.technologyIds.map((technologyId) => ({ programId: id, technologyId })),
           });
+        }
+      }
+
+      // Re-link pricings if provided
+      if (dto.pricings !== undefined) {
+        await tx.programPricing.deleteMany({ where: { programId: id } });
+        if (dto.pricings.length > 0) {
+          await tx.programPricing.createMany({
+            data: dto.pricings.map((p) => ({
+              programId: id,
+              countryId: p.countryId,
+              currency: p.currency.toUpperCase().trim(),
+              amount: p.amount,
+              isActive: p.isActive !== undefined ? p.isActive : true,
+              validFrom: p.validFrom ? new Date(p.validFrom) : null,
+              validUntil: p.validUntil ? new Date(p.validUntil) : null,
+            })),
+          });
+        }
+      }
+
+      // Re-link testimonials if provided
+      if (dto.testimonials !== undefined) {
+        await tx.programTestimonial.deleteMany({ where: { programId: id } });
+        if (dto.testimonials.length > 0) {
+          await tx.programTestimonial.createMany({
+            data: dto.testimonials.map((t, idx) => ({
+              programId: id,
+              authorName: t.authorName.trim(),
+              authorRole: t.authorRole?.trim() || null,
+              quote: t.quote.trim(),
+              rating: t.rating ? Number(t.rating) : 5,
+              avatarUrl: t.avatarUrl?.trim() || null,
+              orderIndex: t.orderIndex !== undefined ? t.orderIndex : idx,
+              isActive: t.isActive !== undefined ? t.isActive : true,
+            })),
+          });
+        }
+      }
+
+      // Re-link faqs if provided
+      if (dto.faqs !== undefined) {
+        await tx.programFaq.deleteMany({ where: { programId: id } });
+        if (dto.faqs.length > 0) {
+          await tx.programFaq.createMany({
+            data: dto.faqs.map((f, idx) => ({
+              programId: id,
+              question: f.question.trim(),
+              answer: f.answer.trim(),
+              orderIndex: f.orderIndex !== undefined ? f.orderIndex : idx,
+              isActive: f.isActive !== undefined ? f.isActive : true,
+            })),
+          });
+        }
+      }
+
+      // Re-link projects if provided
+      if (dto.projects !== undefined) {
+        await tx.project.deleteMany({ where: { programId: id } });
+        for (let pIdx = 0; pIdx < dto.projects.length; pIdx++) {
+          const proj = dto.projects[pIdx];
+          const createdProject = await tx.project.create({
+            data: {
+              programId: id,
+              title: proj.title.trim(),
+              description: proj.description?.trim() || null,
+              orderIndex: proj.orderIndex !== undefined ? proj.orderIndex : pIdx,
+              ...(proj.resources && proj.resources.length > 0
+                ? {
+                    resources: {
+                      create: proj.resources.map((r) => ({
+                        ownerType: 'PROJECT' as const,
+                        type: r.type || 'DOCUMENTATION',
+                        title: r.title.trim(),
+                        url: r.url.trim(),
+                      })),
+                    },
+                  }
+                : {}),
+            },
+          });
+
+          if (proj.workspaceTemplate) {
+            const createdTemplate = await tx.workspaceTemplate.create({
+              data: {
+                projectId: createdProject.id,
+                version: proj.workspaceTemplate.version || 1,
+                isActive:
+                  proj.workspaceTemplate.isActive !== undefined
+                    ? proj.workspaceTemplate.isActive
+                    : true,
+              },
+            });
+
+            if (proj.workspaceTemplate.tasks && proj.workspaceTemplate.tasks.length > 0) {
+              for (let tIdx = 0; tIdx < proj.workspaceTemplate.tasks.length; tIdx++) {
+                const task = proj.workspaceTemplate.tasks[tIdx];
+                await tx.templateTask.create({
+                  data: {
+                    workspaceTemplateId: createdTemplate.id,
+                    title: task.title.trim(),
+                    description: task.description?.trim() || null,
+                    orderIndex: task.orderIndex !== undefined ? task.orderIndex : tIdx,
+                    ...(task.rubric
+                      ? {
+                          rubric: {
+                            create: {
+                              maxScore: task.rubric.maxScore || 100,
+                              passThreshold: task.rubric.passThreshold || 60,
+                              criteria: task.rubric.criteria || [
+                                { criterion: 'Implementation & Requirements', maxScore: 50 },
+                                { criterion: 'Code Quality & Best Practices', maxScore: 30 },
+                                { criterion: 'Documentation & Testing', maxScore: 20 },
+                              ],
+                            },
+                          },
+                        }
+                      : {}),
+                    ...(task.resources && task.resources.length > 0
+                      ? {
+                          resources: {
+                            create: task.resources.map((r) => ({
+                              ownerType: 'TASK' as const,
+                              type: r.type || 'LINK',
+                              title: r.title.trim(),
+                              url: r.url.trim(),
+                            })),
+                          },
+                        }
+                      : {}),
+                  },
+                });
+              }
+            }
+          }
         }
       }
 

@@ -152,7 +152,7 @@ model WorkspaceTemplate {
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  steps TemplateStep[]
+  tasks TemplateTask[]
   studentWorkspaces StudentWorkspace[]
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -161,55 +161,35 @@ model WorkspaceTemplate {
   @@map("workspace_templates")
 }
 
-model TemplateStep {
-  id                  Int    @id @default(autoincrement())
-  workspaceTemplateId Int    @map("workspace_template_id")
-  orderIndex          Int    @map("order_index")
+model TemplateTask {
+  id                  Int     @id @default(autoincrement())
+  workspaceTemplateId Int     @map("workspace_template_id")
+  orderIndex          Int     @map("order_index")
   title               String
   description         String? @db.Text
 
   workspaceTemplate WorkspaceTemplate @relation(fields: [workspaceTemplateId], references: [id], onDelete: Cascade)
 
-  tasks          TemplateTask[]
   rubric         Rubric?
-  resources      Resource[]
-  workspaceSteps WorkspaceStep[]
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@index([workspaceTemplateId])
-  @@map("template_steps")
-}
-
-model TemplateTask {
-  id          Int     @id @default(autoincrement())
-  stepId      Int     @map("step_id")
-  orderIndex  Int     @map("order_index")
-  title       String
-  description String? @db.Text
-
-  step TemplateStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
-
   resources      Resource[]
   workspaceTasks WorkspaceTask[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@index([stepId])
+  @@index([workspaceTemplateId])
   @@map("template_tasks")
 }
 
 model Rubric {
   id            Int    @id @default(autoincrement())
-  stepId        Int    @unique @map("step_id")
+  taskId        Int    @unique @map("task_id")
   version       Int    @default(1)
   criteria      Json
   maxScore      Int    @default(100) @map("max_score")
   passThreshold Int    @default(60) @map("pass_threshold")
 
-  step TemplateStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  task TemplateTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -219,7 +199,6 @@ model Rubric {
 
 enum ResourceOwnerType {
   PROJECT
-  STEP
   TASK
 }
 
@@ -227,20 +206,17 @@ model Resource {
   id        Int               @id @default(autoincrement())
   ownerType ResourceOwnerType @map("owner_type")
   projectId Int?              @map("project_id")
-  stepId    Int?              @map("step_id")
   taskId    Int?              @map("task_id")
   type      String            @db.VarChar(20)
   title     String
   url       String
 
   project Project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  step    TemplateStep? @relation(fields: [stepId], references: [id], onDelete: Cascade)
   task    TemplateTask? @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now()) @map("created_at")
 
   @@index([projectId])
-  @@index([stepId])
   @@index([taskId])
   @@map("resources")
 }

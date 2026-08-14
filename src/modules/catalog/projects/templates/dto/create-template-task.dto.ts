@@ -2,11 +2,11 @@ import { IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateTemplateTaskDto {
-  /** Template Step ID this task belongs to */
+  /** Workspace Template ID this task belongs to */
   @Type(() => Number)
-  @IsInt({ message: 'Template Step ID must be an integer' })
-  @IsNotEmpty({ message: 'Template Step ID is required' })
-  stepId: number;
+  @IsInt({ message: 'Workspace Template ID must be an integer' })
+  @IsNotEmpty({ message: 'Workspace Template ID is required' })
+  workspaceTemplateId: number;
 
   /** Order index of task (1, 2, 3...) */
   @Type(() => Number)

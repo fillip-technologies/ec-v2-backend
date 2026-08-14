@@ -14,8 +14,6 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { TemplatesService } from './templates.service';
 import { CreateWorkspaceTemplateDto } from './dto/create-workspace-template.dto';
-import { CreateTemplateStepDto } from './dto/create-template-step.dto';
-import { UpdateTemplateStepDto } from './dto/update-template-step.dto';
 import { CreateTemplateTaskDto } from './dto/create-template-task.dto';
 import { UpdateTemplateTaskDto } from './dto/update-template-task.dto';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth/jwt-auth.guard';
@@ -45,37 +43,6 @@ export class TemplatesController {
   ) {
     dto.projectId = projectId;
     return this.templatesService.createOrUpdateTemplate(dto);
-  }
-
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Create a new TemplateStep' })
-  @ApiResponse({ status: 201, description: 'TemplateStep created successfully.' })
-  @UseGuards(JwtAuthGuard)
-  @Post('templates/steps')
-  @HttpCode(HttpStatus.CREATED)
-  async createStep(@Body() dto: CreateTemplateStepDto) {
-    return this.templatesService.createStep(dto);
-  }
-
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update an existing TemplateStep' })
-  @ApiResponse({ status: 200, description: 'TemplateStep updated successfully.' })
-  @UseGuards(JwtAuthGuard)
-  @Patch('templates/steps/:id')
-  async updateStep(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateTemplateStepDto,
-  ) {
-    return this.templatesService.updateStep(id, dto);
-  }
-
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Delete a TemplateStep by ID' })
-  @ApiResponse({ status: 200, description: 'TemplateStep deleted successfully.' })
-  @UseGuards(JwtAuthGuard)
-  @Delete('templates/steps/:id')
-  async removeStep(@Param('id', ParseIntPipe) id: number) {
-    return this.templatesService.removeStep(id);
   }
 
   @ApiBearerAuth()

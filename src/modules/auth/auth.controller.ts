@@ -8,6 +8,8 @@ import {
   HttpCode,
   HttpStatus,
   UnauthorizedException,
+  Req,
+  Res,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -21,6 +23,34 @@ import { RegisterCollegeDto } from './dto/register-college.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth/jwt-auth.guard';
 
+const REFRESH_COOKIE_OPTIONS: any = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax',
+  path: '/',
+  maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+};
+
+// Helper to reliably parse cookies from header
+function getCookie(req: any, name: string): string | null {
+  if (req.cookies && req.cookies[name]) {
+    return req.cookies[name];
+  }
+  const cookieHeader = req.headers?.cookie;
+  if (!cookieHeader) return null;
+  const cookies = cookieHeader.split(';').reduce((acc: Record<string, string>, cookie: string) => {
+    const trimmed = cookie.trim();
+    const eqIdx = trimmed.indexOf('=');
+    if (eqIdx !== -1) {
+      const key = trimmed.substring(0, eqIdx).trim();
+      const val = trimmed.substring(eqIdx + 1).trim();
+      acc[key] = val;
+    }
+    return acc;
+  }, {} as Record<string, string>);
+  return cookies[name] ? decodeURIComponent(cookies[name]) : null;
+}
+
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
@@ -28,90 +58,122 @@ export class AuthController {
 
   /**
    * POST /auth/register/student
-   * Register a new student account
    */
-  @ApiOperation({
-    summary: 'Register a new student account',
-    description: 'Creates a user account with student role and optionally links it to a college.',
-  })
-  @ApiResponse({
-    status: 201,
-    description: 'Student account registered successfully with access token.',
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Bad request (email duplicate or missing fields).',
-  })
+  @ApiOperation({ summary: 'Register a new student account' })
   @Post('register/student')
   @HttpCode(HttpStatus.CREATED)
-  async registerStudent(@Body() dto: RegisterStudentDto) {
-    return this.authService.registerStudent(dto);
+  async registerStudent(
+    @Body() dto: RegisterStudentDto,
+    @Res({ passthrough: true }) res: any,
+  ) {
+    const result = await this.authService.registerStudent(dto);
+
+    if (result.refreshToken) {
+      res.cookie('refreshToken', result.refreshToken, REFRESH_COOKIE_OPTIONS);
+    }
+
+    return result;
   }
 
   /**
    * POST /auth/register/college
-   * Register a new college & admin account
    */
-  @ApiOperation({
-    summary: 'Register a new college institution & admin account',
-    description: 'Creates a college record, user account with college role, and links them via collegeMember.',
-  })
-  @ApiResponse({
-    status: 201,
-    description: 'College account registered successfully with access token.',
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Bad request (email or college name duplicate).',
-  })
+  @ApiOperation({ summary: 'Register a new college account' })
   @Post('register/college')
   @HttpCode(HttpStatus.CREATED)
-  async registerCollege(@Body() dto: RegisterCollegeDto) {
-    return this.authService.registerCollege(dto);
+  async registerCollege(
+    @Body() dto: RegisterCollegeDto,
+    @Res({ passthrough: true }) res: any,
+  ) {
+    const result: any = await this.authService.registerCollege(dto);
+
+    if (result.refreshToken) {
+      res.cookie('refreshToken', result.refreshToken, REFRESH_COOKIE_OPTIONS);
+    }
+
+    return result;
   }
 
   /**
    * POST /auth/login
-   * User login (student, college, admin)
    */
-  @ApiOperation({
-    summary: 'User login (Student, College, Admin)',
-    description: 'Authenticates user email and password credentials and returns a JWT access token.',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Login successful. Returns access token and user profile.',
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Unauthorized (invalid credentials or role mismatch).',
-  })
+  @ApiOperation({ summary: 'User login' })
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  async login(
+    @Body() dto: LoginDto,
+    @Res({ passthrough: true }) res: any,
+  ) {
+    const result = await this.authService.login(dto);
+
+    if (result.refreshToken) {
+      res.cookie('refreshToken', result.refreshToken, REFRESH_COOKIE_OPTIONS);
+    }
+
+    return result;
+  }
+
+  /**
+   * POST /auth/refresh
+   */
+  @ApiOperation({ summary: 'Refresh Access Token' })
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  async refresh(
+    @Req() req: any,
+    @Body() body: any,
+    @Res({ passthrough: true }) res: any,
+  ) {
+    const bodyToken = body?.refreshToken || req.body?.refreshToken;
+    const cookieToken = getCookie(req, 'refreshToken');
+    const token = bodyToken || cookieToken;
+
+    if (!token) {
+      throw new UnauthorizedException('No refresh token provided');
+    }
+
+    const result = await this.authService.refreshTokens(token);
+
+    if (result.refreshToken) {
+      res.cookie('refreshToken', result.refreshToken, REFRESH_COOKIE_OPTIONS);
+    }
+
+    return result;
+  }
+
+  /**
+   * POST /auth/logout
+   */
+  @ApiOperation({ summary: 'User logout' })
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  async logout(
+    @Req() req: any,
+    @Body() body: any,
+    @Res({ passthrough: true }) res: any,
+  ) {
+    const token = getCookie(req, 'refreshToken') || body?.refreshToken || req.body?.refreshToken;
+    
+    if (token) {
+      await this.authService.revokeRefreshToken(token);
+    }
+
+    res.clearCookie('refreshToken', {
+      ...REFRESH_COOKIE_OPTIONS,
+      maxAge: 0,
+    });
+
+    return { message: 'Logged out successfully' };
   }
 
   /**
    * GET /auth/profile
-   * Get current authenticated user profile
    */
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({
-    summary: 'Get current logged-in user profile',
-    description: 'Returns authenticated user details based on Bearer JWT token.',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Authenticated user profile returned.',
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Unauthorized (missing or invalid Bearer token).',
-  })
+  @ApiOperation({ summary: 'Get current profile' })
   @Get('profile')
-  async getProfile(@Request() req) {
+  async getProfile(@Request() req: any) {
     if (!req || !req.user || !req.user.id) {
       throw new UnauthorizedException('Unauthorized');
     }

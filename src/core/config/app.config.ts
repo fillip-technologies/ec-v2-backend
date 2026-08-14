@@ -8,6 +8,8 @@ export interface AppConfig {
   jwt: {
     secret: string;
     expiresIn: string;
+    refreshSecret: string;
+    refreshExpiresIn: string;
   };
   database: {
     host: string;
@@ -41,7 +43,9 @@ export default registerAs('app', (): AppConfig => {
     ],
     jwt: {
       secret: process.env.JWT_SECRET || 'engineers_clinic_super_secret_jwt_key_2026',
-      expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+      expiresIn: process.env.JWT_EXPIRES_IN || '15m',
+      refreshSecret: process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET || 'engineers_clinic_super_secret_jwt_key_2026',
+      refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
     },
     database: {
       host,
