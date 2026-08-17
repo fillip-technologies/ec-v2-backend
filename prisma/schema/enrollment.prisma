@@ -68,6 +68,7 @@ model StudentWorkspace {
   enrollmentProjectId  Int @unique @map("enrollment_project_id")
   workspaceTemplateId  Int @map("workspace_template_id")
   templateVersion      Int @map("template_version")   // frozen at creation time
+  repoUrl              String? @map("repo_url") @db.Text
 
   enrollmentProject EnrollmentProject @relation(fields: [enrollmentProjectId], references: [id], onDelete: Cascade)
   workspaceTemplate WorkspaceTemplate @relation(fields: [workspaceTemplateId], references: [id])
@@ -114,6 +115,7 @@ model Submission {
   id              Int              @id @default(autoincrement())
   workspaceTaskId Int              @map("workspace_task_id")
   studentId       Int              @map("student_id")
+  commitHash      String?          @map("commit_hash") @db.VarChar(64)
   payloadUrl      String           @map("payload_url") @db.Text
   status          SubmissionStatus @default(EVALUATING)
   attemptIndex    Int              @default(1) @map("attempt_index")

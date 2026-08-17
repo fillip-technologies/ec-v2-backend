@@ -343,9 +343,12 @@ export class StudentService {
           description: ep.project.description,
           orderIndex: ep.orderIndex,
           status: projectStatus,
+          workspaceId: ep.workspace?.id ?? null,
+          repoUrl: ep.workspace?.repoUrl ?? null,
           workspaceTemplate: {
             id: ep.workspace?.workspaceTemplateId || ep.project.id,
             version: ep.workspace?.templateVersion || 1,
+            repoUrl: ep.workspace?.repoUrl ?? null,
             tasks: formattedTasks,
           },
         };
@@ -428,7 +431,11 @@ export class StudentService {
     const submissions = await this.prisma.submission.findMany({
       where: { studentId: userId },
       include: {
-        workspaceTask: true,
+        workspaceTask: {
+          include: {
+            studentWorkspace: true,
+          },
+        },
         aiReview: true,
       },
       orderBy: { createdAt: 'desc' },
@@ -443,6 +450,9 @@ export class StudentService {
       submittedAt: sub.createdAt,
       status: sub.status,
       attemptIndex: sub.attemptIndex,
+      commitHash: sub.commitHash ?? null,
+      repoUrl: sub.workspaceTask.studentWorkspace?.repoUrl ?? null,
+      payloadUrl: sub.payloadUrl,
       evaluator: 'AI Reviewer Engine (BullMQ Worker)',
       score: sub.aiReview?.score ?? null,
       maxScore: sub.aiReview?.maxScore ?? 100,
@@ -452,8 +462,47 @@ export class StudentService {
   }
 
   /**
+   * PATCH /student/workspace/:workspaceId/repo
+   * Set or update GitHub repository URL for a student project workspace
+   */
+  async updateWorkspaceRepo(userId: number, workspaceId: number, repoUrl: string) {
+    const workspace = await this.prisma.studentWorkspace.findUnique({
+      where: { id: workspaceId },
+      include: {
+        enrollmentProject: {
+          include: {
+            enrollment: true,
+          },
+        },
+      },
+    });
+
+    if (!workspace) {
+      throw new NotFoundException(`Student workspace ID ${workspaceId} not found`);
+    }
+
+    if (workspace.enrollmentProject.enrollment.studentId !== userId) {
+      throw new ForbiddenException('You do not have permission to configure this project workspace');
+    }
+
+    // Clean up repo URL
+    const cleanedUrl = repoUrl.trim().replace(/\.git\/?$/, '').replace(/\/+$/, '');
+
+    const updated = await this.prisma.studentWorkspace.update({
+      where: { id: workspaceId },
+      data: { repoUrl: cleanedUrl },
+    });
+
+    return {
+      message: 'GitHub repository linked successfully',
+      workspaceId: updated.id,
+      repoUrl: updated.repoUrl,
+    };
+  }
+
+  /**
    * POST /student/submissions
-   * Submit deliverable for a workspace step
+   * Submit deliverable for a workspace step (commit hash or repo payload)
    */
   async createSubmission(userId: number, dto: CreateSubmissionDto) {
     const task = await this.prisma.workspaceTask.findUnique({
@@ -491,11 +540,40 @@ export class StudentService {
       throw new BadRequestException('Resubmission limit reached (5 attempts max). Task routed to manual mentor review.');
     }
 
+    let finalPayloadUrl = dto.payloadUrl ? dto.payloadUrl.trim() : '';
+    let finalCommitHash = dto.commitHash ? dto.commitHash.trim() : null;
+
+    if (finalCommitHash) {
+      // Clean commit hash (strip commit/ prefix if pasted full URL)
+      const commitMatch = finalCommitHash.match(/([a-f0-9]{6,40})/i);
+      if (commitMatch) {
+        finalCommitHash = commitMatch[1];
+      }
+
+      const workspaceRepo = task.studentWorkspace.repoUrl;
+      if (workspaceRepo) {
+        const cleanRepo = workspaceRepo.replace(/\.git\/?$/, '').replace(/\/+$/, '');
+        finalPayloadUrl = `${cleanRepo}/commit/${finalCommitHash}`;
+      } else if (!finalPayloadUrl) {
+        throw new BadRequestException(
+          'Please link a GitHub repository to this project before submitting task commit hashes.'
+        );
+      }
+    } else if (finalPayloadUrl) {
+      const match = finalPayloadUrl.match(/\/commit\/([a-f0-9]{6,40})/i);
+      if (match) {
+        finalCommitHash = match[1];
+      }
+    } else {
+      throw new BadRequestException('A valid commit hash or deliverable URL is required.');
+    }
+
     const submission = await this.prisma.submission.create({
       data: {
         workspaceTaskId: dto.workspaceTaskId,
         studentId: userId,
-        payloadUrl: dto.payloadUrl,
+        commitHash: finalCommitHash,
+        payloadUrl: finalPayloadUrl,
         status: 'EVALUATING',
         attemptIndex: currentResubmissionCount + 1,
       },

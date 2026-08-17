@@ -2,6 +2,9 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
+  Param,
+  ParseIntPipe,
   Body,
   UseGuards,
   Request,
@@ -10,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { StudentService } from './student.service';
 import { CreateSubmissionDto } from './dto/create-submission.dto';
+import { UpdateWorkspaceRepoDto } from './dto/update-workspace-repo.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth/jwt-auth.guard';
 import { RolesGuard } from '../../core/guards/roles.guard';
 import { PermissionsGuard } from '../../core/guards/permissions.guard';
@@ -77,6 +81,22 @@ export class StudentController {
   async getSubmissions(@Request() req: any) {
     const userId = req.user.id;
     return this.studentService.getSubmissions(userId);
+  }
+
+  /**
+   * PATCH /student/workspace/:workspaceId/repo
+   * Link or update GitHub repository URL for a project workspace
+   */
+  @Patch('workspace/:workspaceId/repo')
+  @Roles('student', 'admin', 'super_admin')
+  @Permissions('project:enroll')
+  async updateWorkspaceRepo(
+    @Request() req: any,
+    @Param('workspaceId', ParseIntPipe) workspaceId: number,
+    @Body() dto: UpdateWorkspaceRepoDto,
+  ) {
+    const userId = req.user.id;
+    return this.studentService.updateWorkspaceRepo(userId, workspaceId, dto.repoUrl);
   }
 
   /**

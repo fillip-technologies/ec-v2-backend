@@ -771,10 +771,14 @@ async function main() {
       create: { enrollmentId, projectId, orderIndex, status: projectStatus },
     });
 
+    const projectRecord = await prisma.project.findUnique({ where: { id: projectId } });
+    const slug = projectRecord?.title?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || `capstone-project-${projectId}`;
+    const repoUrl = `https://github.com/engineersclinic/${slug}`;
+
     const workspace = await prisma.studentWorkspace.upsert({
       where: { enrollmentProjectId: ep.id },
-      update: { workspaceTemplateId: projectId, templateVersion: 1 },
-      create: { enrollmentProjectId: ep.id, workspaceTemplateId: projectId, templateVersion: 1 },
+      update: { workspaceTemplateId: projectId, templateVersion: 1, repoUrl },
+      create: { enrollmentProjectId: ep.id, workspaceTemplateId: projectId, templateVersion: 1, repoUrl },
     });
 
     const templateTasks = await prisma.templateTask.findMany({
@@ -830,12 +834,22 @@ async function main() {
         if (enrollment) {
           const subId = 1000 + newWsTask.id;
           const subStatus = passed ? 'PASSED' : status === 'NEEDS_WORK' ? 'NEEDS_WORK' : 'EVALUATING';
+          const commitHash = (
+            passed
+              ? (0xa1b2c3d4 + newWsTask.id * 0x1337).toString(16).padStart(8, '0')
+              : status === 'NEEDS_WORK'
+              ? (0xdeadbeef + newWsTask.id * 0x7331).toString(16).padStart(8, '0')
+              : (0xfa91b000 + newWsTask.id * 0x1111).toString(16).padStart(8, '0')
+          ).substring(0, 8);
+          const payloadUrl = `${repoUrl}/commit/${commitHash}`;
+
           const sub = await prisma.submission.upsert({
             where: { id: subId },
             update: {
               workspaceTaskId: newWsTask.id,
               studentId: enrollment.studentId,
-              payloadUrl: `https://github.com/engineersclinic/capstone-task-${newWsTask.id}-submission`,
+              commitHash,
+              payloadUrl,
               status: subStatus,
               attemptIndex: status === 'NEEDS_WORK' ? 2 : 1,
             },
@@ -843,7 +857,8 @@ async function main() {
               id: subId,
               workspaceTaskId: newWsTask.id,
               studentId: enrollment.studentId,
-              payloadUrl: `https://github.com/engineersclinic/capstone-task-${newWsTask.id}-submission`,
+              commitHash,
+              payloadUrl,
               status: subStatus,
               attemptIndex: status === 'NEEDS_WORK' ? 2 : 1,
             },

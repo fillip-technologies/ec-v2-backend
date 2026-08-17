@@ -2,7 +2,7 @@ import { IsArray, IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString, Min, Valid
 import { Type } from 'class-transformer';
 import { CreateProgramPricingDto } from './create-program-pricing.dto';
 
-export class CreateResourceDto {
+export class CreateNestedResourceDto {
   @IsOptional()
   @IsString()
   type?: string;
@@ -16,7 +16,7 @@ export class CreateResourceDto {
   url: string;
 }
 
-export class CreateRubricDto {
+export class CreateNestedRubricDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -31,7 +31,7 @@ export class CreateRubricDto {
   criteria?: any;
 }
 
-export class CreateTemplateTaskDto {
+export class CreateNestedTemplateTaskDto {
   @IsString()
   @IsNotEmpty({ message: 'Task title is required' })
   title: string;
@@ -47,17 +47,17 @@ export class CreateTemplateTaskDto {
 
   @IsOptional()
   @ValidateNested()
-  @Type(() => CreateRubricDto)
-  rubric?: CreateRubricDto;
+  @Type(() => CreateNestedRubricDto)
+  rubric?: CreateNestedRubricDto;
 
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => CreateResourceDto)
-  resources?: CreateResourceDto[];
+  @Type(() => CreateNestedResourceDto)
+  resources?: CreateNestedResourceDto[];
 }
 
-export class CreateWorkspaceTemplateDto {
+export class CreateNestedWorkspaceTemplateDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -70,11 +70,11 @@ export class CreateWorkspaceTemplateDto {
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => CreateTemplateTaskDto)
-  tasks?: CreateTemplateTaskDto[];
+  @Type(() => CreateNestedTemplateTaskDto)
+  tasks?: CreateNestedTemplateTaskDto[];
 }
 
-export class CreateProjectDto {
+export class CreateNestedProjectDto {
   @IsString()
   @IsNotEmpty({ message: 'Project title is required' })
   title: string;
@@ -90,14 +90,14 @@ export class CreateProjectDto {
 
   @IsOptional()
   @ValidateNested()
-  @Type(() => CreateWorkspaceTemplateDto)
-  workspaceTemplate?: CreateWorkspaceTemplateDto;
+  @Type(() => CreateNestedWorkspaceTemplateDto)
+  workspaceTemplate?: CreateNestedWorkspaceTemplateDto;
 
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => CreateResourceDto)
-  resources?: CreateResourceDto[];
+  @Type(() => CreateNestedResourceDto)
+  resources?: CreateNestedResourceDto[];
 }
 
 export class CreateProgramTestimonialDto {
@@ -226,6 +226,6 @@ export class CreateProgramDto {
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => CreateProjectDto)
-  projects?: CreateProjectDto[];
+  @Type(() => CreateNestedProjectDto)
+  projects?: CreateNestedProjectDto[];
 }

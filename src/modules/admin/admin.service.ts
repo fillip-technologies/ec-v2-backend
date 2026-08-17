@@ -273,6 +273,8 @@ export class AdminService {
         studentEmail: s.student.user.email,
         projectTitle: s.workspaceTask.studentWorkspace.enrollmentProject.project.title,
         taskTitle: s.workspaceTask.title,
+        commitHash: s.commitHash ?? null,
+        repoUrl: s.workspaceTask.studentWorkspace?.repoUrl ?? null,
         payloadUrl: s.payloadUrl,
         status: s.status,
         submittedAt: s.createdAt,

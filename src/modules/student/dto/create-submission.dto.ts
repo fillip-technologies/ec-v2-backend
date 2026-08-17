@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsNumber, IsString, IsUrl } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class CreateSubmissionDto {
   @IsNumber()
@@ -6,6 +6,10 @@ export class CreateSubmissionDto {
   workspaceTaskId: number;
 
   @IsString()
-  @IsNotEmpty()
-  payloadUrl: string;
+  @IsOptional()
+  commitHash?: string;
+
+  @IsString()
+  @IsOptional()
+  payloadUrl?: string;
 }
