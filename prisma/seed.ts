@@ -740,19 +740,6 @@ async function main() {
 
   let wsTaskIdCounter = 1;
 
-  await seedStudentWorkspace(enrollment.id, 1, 1, ['PASSED', 'PASSED', 'PASSED', 'PASSED', 'PASSED', 'PASSED']);
-  await seedStudentWorkspace(enrollment.id, 2, 2, ['PASSED', 'PASSED', 'PASSED', 'OPEN', 'LOCKED', 'LOCKED']);
-  await seedStudentWorkspace(enrollment.id, 3, 3, ['LOCKED', 'LOCKED', 'LOCKED', 'LOCKED', 'LOCKED', 'LOCKED']);
-  console.log('  ✅ Default Enrollment 1 seeded with 3 Capstone Projects (Project 1 Passed, Project 2 Active, Project 3 Locked)');
-
-  console.log('🌱 Seeding Scenario Diversity (single, multi, partial, completed)...');
-
-  const scenarioUsers = [
-    { id: 5, email: 'priya@example.com', firstName: 'Priya', lastName: 'Iyer', collegeId: 1 },
-    { id: 6, email: 'vikram@example.com', firstName: 'Vikram', lastName: 'Nair', collegeId: 2 },
-    { id: 7, email: 'kavya@example.com', firstName: 'Kavya', lastName: 'Reddy', collegeId: 1 },
-  ];
-
   async function seedStudentWorkspace(
     enrollmentId: number,
     projectId: number,
@@ -900,6 +887,60 @@ async function main() {
     }
   }
 
+  async function seedStudentEnrollment(
+    enrollmentId: number,
+    studentId: number,
+    programId: number,
+    enrollmentStatus: 'ACTIVE' | 'COMPLETED',
+    projectTaskStatuses: Array<Array<'LOCKED' | 'OPEN' | 'PASSED' | 'NEEDS_WORK'>>,
+  ) {
+    const enrollment = await prisma.enrollment.upsert({
+      where: { id: enrollmentId },
+      update: {
+        studentId,
+        programId,
+        status: enrollmentStatus,
+        completedAt: enrollmentStatus === 'COMPLETED' ? new Date() : null,
+      },
+      create: {
+        id: enrollmentId,
+        studentId,
+        programId,
+        status: enrollmentStatus,
+        completedAt: enrollmentStatus === 'COMPLETED' ? new Date() : null,
+      },
+    });
+
+    const programProjects = await prisma.project.findMany({
+      where: { programId },
+      orderBy: { orderIndex: 'asc' },
+    });
+
+    for (let pIdx = 0; pIdx < programProjects.length; pIdx++) {
+      const project = programProjects[pIdx];
+      const stepStatuses = projectTaskStatuses[pIdx] || ['LOCKED', 'LOCKED', 'LOCKED', 'LOCKED', 'LOCKED', 'LOCKED'];
+      await seedStudentWorkspace(enrollment.id, project.id, pIdx + 1, stepStatuses);
+    }
+
+    return enrollment;
+  }
+
+  // 1. Default Student: Program 1 (Full Stack MERN)
+  await seedStudentEnrollment(1, student.userid, 1, 'ACTIVE', [
+    ['PASSED', 'PASSED', 'PASSED', 'PASSED', 'PASSED', 'PASSED'],
+    ['PASSED', 'PASSED', 'PASSED', 'OPEN', 'LOCKED', 'LOCKED'],
+    ['LOCKED', 'LOCKED', 'LOCKED', 'LOCKED', 'LOCKED', 'LOCKED'],
+  ]);
+  console.log('  ✅ Default Enrollment 1 seeded with 3 Capstone Projects (Project 1 Passed, Project 2 Active, Project 3 Locked)');
+
+  console.log('🌱 Seeding Scenario Diversity (single, multi, partial, completed)...');
+
+  const scenarioUsers = [
+    { id: 5, email: 'priya@example.com', firstName: 'Priya', lastName: 'Iyer', collegeId: 1 },
+    { id: 6, email: 'vikram@example.com', firstName: 'Vikram', lastName: 'Nair', collegeId: 2 },
+    { id: 7, email: 'kavya@example.com', firstName: 'Kavya', lastName: 'Reddy', collegeId: 1 },
+  ];
+
   for (const su of scenarioUsers) {
     await prisma.user.upsert({
       where: { id: su.id },
@@ -913,41 +954,31 @@ async function main() {
     });
   }
 
-  // Priya: Cybersecurity Incident Response (Program 6)
-  const priyaEnrollment = await prisma.enrollment.upsert({
-    where: { id: 2 },
-    update: { studentId: 5, programId: 6, status: 'ACTIVE' },
-    create: { id: 2, studentId: 5, programId: 6, status: 'ACTIVE' },
-  });
-  await seedStudentWorkspace(priyaEnrollment.id, 11, 1, ['PASSED', 'OPEN', 'LOCKED']);
-  await seedStudentWorkspace(priyaEnrollment.id, 12, 2, ['OPEN', 'LOCKED', 'LOCKED']);
+  // 2. Priya: Program 6 (Cybersecurity Incident Response & Ethical Hacking)
+  await seedStudentEnrollment(2, 5, 6, 'ACTIVE', [
+    ['PASSED', 'OPEN', 'LOCKED', 'LOCKED', 'LOCKED', 'LOCKED'],
+    ['OPEN', 'LOCKED', 'LOCKED', 'LOCKED', 'LOCKED', 'LOCKED'],
+  ]);
 
-  // Vikram: MULTIPLE programs (Cloud Infrastructure + Full Stack)
-  const vikramP1 = await prisma.enrollment.upsert({
-    where: { id: 3 },
-    update: { studentId: 6, programId: 8, status: 'ACTIVE' },
-    create: { id: 3, studentId: 6, programId: 8, status: 'ACTIVE' },
-  });
-  await seedStudentWorkspace(vikramP1.id, 15, 1, ['PASSED', 'PASSED', 'OPEN']);
-  await seedStudentWorkspace(vikramP1.id, 16, 2, ['PASSED', 'OPEN', 'LOCKED']);
+  // 3. Vikram: Program 8 (Terraform Multi-Cloud Infra) + Program 1 (Full Stack MERN)
+  await seedStudentEnrollment(3, 6, 8, 'ACTIVE', [
+    ['PASSED', 'PASSED', 'OPEN', 'LOCKED', 'LOCKED', 'LOCKED'],
+    ['PASSED', 'OPEN', 'LOCKED', 'LOCKED', 'LOCKED', 'LOCKED'],
+  ]);
 
-  const vikramP2 = await prisma.enrollment.upsert({
-    where: { id: 4 },
-    update: { studentId: 6, programId: 1, status: 'ACTIVE' },
-    create: { id: 4, studentId: 6, programId: 1, status: 'ACTIVE' },
-  });
-  await seedStudentWorkspace(vikramP2.id, 1, 1, ['OPEN', 'LOCKED']);
-  await seedStudentWorkspace(vikramP2.id, 2, 2, ['LOCKED', 'LOCKED']);
+  await seedStudentEnrollment(4, 6, 1, 'ACTIVE', [
+    ['OPEN', 'LOCKED', 'LOCKED', 'LOCKED', 'LOCKED', 'LOCKED'],
+    ['LOCKED', 'LOCKED', 'LOCKED', 'LOCKED', 'LOCKED', 'LOCKED'],
+    ['LOCKED', 'LOCKED', 'LOCKED', 'LOCKED', 'LOCKED', 'LOCKED'],
+  ]);
 
-  // Kavya: Embedded Systems & Smart IoT Sensor Gateway (Program 7), ALL steps COMPLETED
-  const kavyaEnrollment = await prisma.enrollment.upsert({
-    where: { id: 5 },
-    update: { studentId: 7, programId: 7, status: 'COMPLETED', completedAt: new Date() },
-    create: { id: 5, studentId: 7, programId: 7, status: 'COMPLETED', completedAt: new Date() },
-  });
-  await seedStudentWorkspace(kavyaEnrollment.id, 13, 1, ['PASSED', 'PASSED', 'PASSED']);
-  await seedStudentWorkspace(kavyaEnrollment.id, 14, 2, ['PASSED', 'PASSED', 'PASSED']);
-  console.log('  ✅ Scenario students seeded with distinct programs: Priya (Cybersecurity), Vikram (Cloud + Fullstack), Kavya (IoT Completed)');
+  // 4. Kavya: Program 7 (Embedded IoT Gateway - COMPLETED)
+  await seedStudentEnrollment(5, 7, 7, 'COMPLETED', [
+    ['PASSED', 'PASSED', 'PASSED', 'PASSED', 'PASSED', 'PASSED'],
+    ['PASSED', 'PASSED', 'PASSED', 'PASSED', 'PASSED', 'PASSED'],
+  ]);
+
+  console.log('  ✅ Scenario students seeded with dynamic project matching: Priya (Cybersecurity), Vikram (Cloud + Fullstack), Kavya (IoT Completed)');
 
   await prisma.$disconnect();
   console.log('✨ GRANULAR RESOURCE-ACTION PERMISSIONS SEEDED SUCCESSFULLY!');

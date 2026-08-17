@@ -317,6 +317,19 @@ export class StudentService {
             }
           }
 
+          let rubricCriteria: any = null;
+          if (t.templateTask?.rubric?.criteria) {
+            if (typeof t.templateTask.rubric.criteria === 'string') {
+              try {
+                rubricCriteria = JSON.parse(t.templateTask.rubric.criteria);
+              } catch {
+                rubricCriteria = null;
+              }
+            } else {
+              rubricCriteria = t.templateTask.rubric.criteria;
+            }
+          }
+
           return {
             id: t.id,
             title: t.title,
@@ -324,6 +337,22 @@ export class StudentService {
             orderIndex: t.orderIndex,
             status: storedTaskStatus,
             resources: t.templateTask?.resources || [],
+            rubric: t.templateTask?.rubric
+              ? {
+                  id: t.templateTask.rubric.id,
+                  maxScore: t.templateTask.rubric.maxScore || 100,
+                  passThreshold: t.templateTask.rubric.passThreshold || 60,
+                  criteria: rubricCriteria,
+                }
+              : null,
+            latestSubmission: latestSub
+              ? {
+                  id: latestSub.id,
+                  commitHash: latestSub.commitHash,
+                  payloadUrl: latestSub.payloadUrl,
+                  submittedAt: latestSub.createdAt,
+                }
+              : null,
             latestReview: latestReview
               ? {
                   score: latestReview.score,

@@ -369,60 +369,201 @@ export class ProgramsService {
         }
       }
 
-      // Re-link projects if provided
+      // Non-destructive update for projects, templates, tasks, rubrics, and resources
       if (dto.projects !== undefined) {
-        await tx.project.deleteMany({ where: { programId: id } });
-        for (let pIdx = 0; pIdx < dto.projects.length; pIdx++) {
-          const proj = dto.projects[pIdx];
-          const createdProject = await tx.project.create({
-            data: {
-              programId: id,
-              title: proj.title.trim(),
-              description: proj.description?.trim() || null,
-              orderIndex: proj.orderIndex !== undefined ? proj.orderIndex : pIdx,
-              ...(proj.resources && proj.resources.length > 0
-                ? {
-                    resources: {
-                      create: proj.resources.map((r) => ({
-                        ownerType: 'PROJECT' as const,
-                        type: r.type || 'DOCUMENTATION',
-                        title: r.title.trim(),
-                        url: r.url.trim(),
-                      })),
-                    },
-                  }
-                : {}),
+        const existingProjects = await tx.project.findMany({
+          where: { programId: id },
+          include: {
+            resources: true,
+            workspaceTemplate: {
+              include: {
+                tasks: {
+                  include: {
+                    rubric: true,
+                    resources: true,
+                  },
+                  orderBy: { orderIndex: 'asc' },
+                },
+              },
             },
-          });
+          },
+          orderBy: { orderIndex: 'asc' },
+        });
 
-          if (proj.workspaceTemplate) {
-            const createdTemplate = await tx.workspaceTemplate.create({
+        const updatedProjectIds: number[] = [];
+
+        for (let pIdx = 0; pIdx < dto.projects.length; pIdx++) {
+          const projDto = dto.projects[pIdx];
+          const existingProj = existingProjects[pIdx];
+
+          let projectId: number;
+
+          if (existingProj) {
+            projectId = existingProj.id;
+            // 1. Update existing project row
+            await tx.project.update({
+              where: { id: existingProj.id },
               data: {
-                projectId: createdProject.id,
-                version: proj.workspaceTemplate.version || 1,
-                isActive:
-                  proj.workspaceTemplate.isActive !== undefined
-                    ? proj.workspaceTemplate.isActive
-                    : true,
+                title: projDto.title.trim(),
+                description: projDto.description?.trim() || null,
+                orderIndex: projDto.orderIndex !== undefined ? projDto.orderIndex : pIdx + 1,
               },
             });
 
-            if (proj.workspaceTemplate.tasks && proj.workspaceTemplate.tasks.length > 0) {
-              for (let tIdx = 0; tIdx < proj.workspaceTemplate.tasks.length; tIdx++) {
-                const task = proj.workspaceTemplate.tasks[tIdx];
-                await tx.templateTask.create({
+            // 2. Project Resources: Clean & Re-add project resources
+            await tx.resource.deleteMany({
+              where: { projectId: existingProj.id, ownerType: 'PROJECT' },
+            });
+            if (projDto.resources && projDto.resources.length > 0) {
+              await tx.resource.createMany({
+                data: projDto.resources.map((r) => ({
+                  ownerType: 'PROJECT' as const,
+                  projectId: existingProj.id,
+                  type: r.type || 'DOCUMENTATION',
+                  title: r.title.trim(),
+                  url: r.url.trim(),
+                })),
+              });
+            }
+          } else {
+            // 1. Create new project row
+            const createdProj = await tx.project.create({
+              data: {
+                programId: id,
+                title: projDto.title.trim(),
+                description: projDto.description?.trim() || null,
+                orderIndex: projDto.orderIndex !== undefined ? projDto.orderIndex : pIdx + 1,
+                ...(projDto.resources && projDto.resources.length > 0
+                  ? {
+                      resources: {
+                        create: projDto.resources.map((r) => ({
+                          ownerType: 'PROJECT' as const,
+                          type: r.type || 'DOCUMENTATION',
+                          title: r.title.trim(),
+                          url: r.url.trim(),
+                        })),
+                      },
+                    }
+                  : {}),
+              },
+            });
+            projectId = createdProj.id;
+          }
+
+          updatedProjectIds.push(projectId);
+
+          // 3. Workspace Template
+          if (projDto.workspaceTemplate) {
+            let templateId: number;
+
+            if (existingProj?.workspaceTemplate) {
+              templateId = existingProj.workspaceTemplate.id;
+              await tx.workspaceTemplate.update({
+                where: { id: templateId },
+                data: {
+                  version: projDto.workspaceTemplate.version || existingProj.workspaceTemplate.version || 1,
+                  isActive:
+                    projDto.workspaceTemplate.isActive !== undefined
+                      ? projDto.workspaceTemplate.isActive
+                      : true,
+                },
+              });
+            } else {
+              const createdTemplate = await tx.workspaceTemplate.create({
+                data: {
+                  projectId,
+                  version: projDto.workspaceTemplate.version || 1,
+                  isActive:
+                    projDto.workspaceTemplate.isActive !== undefined
+                      ? projDto.workspaceTemplate.isActive
+                      : true,
+                },
+              });
+              templateId = createdTemplate.id;
+            }
+
+            // 4. Tasks, Rubrics & Resources
+            const incomingTasks = projDto.workspaceTemplate.tasks || [];
+            const existingTasks = existingProj?.workspaceTemplate?.tasks || [];
+            const updatedTaskIds: number[] = [];
+
+            for (let tIdx = 0; tIdx < incomingTasks.length; tIdx++) {
+              const taskDto = incomingTasks[tIdx];
+              const existingTask = existingTasks[tIdx];
+
+              let taskId: number;
+
+              if (existingTask) {
+                taskId = existingTask.id;
+                // Update existing task
+                await tx.templateTask.update({
+                  where: { id: existingTask.id },
                   data: {
-                    workspaceTemplateId: createdTemplate.id,
-                    title: task.title.trim(),
-                    description: task.description?.trim() || null,
-                    orderIndex: task.orderIndex !== undefined ? task.orderIndex : tIdx,
-                    ...(task.rubric
+                    title: taskDto.title.trim(),
+                    description: taskDto.description?.trim() || null,
+                    orderIndex: taskDto.orderIndex !== undefined ? taskDto.orderIndex : tIdx + 1,
+                  },
+                });
+
+                // Update or Create Rubric
+                if (taskDto.rubric) {
+                  const criteriaPayload = taskDto.rubric.criteria || [
+                    { criterion: 'Implementation & Requirements', maxScore: 50 },
+                    { criterion: 'Code Quality & Best Practices', maxScore: 30 },
+                    { criterion: 'Documentation & Testing', maxScore: 20 },
+                  ];
+
+                  if (existingTask.rubric) {
+                    await tx.rubric.update({
+                      where: { id: existingTask.rubric.id },
+                      data: {
+                        maxScore: taskDto.rubric.maxScore || 100,
+                        passThreshold: taskDto.rubric.passThreshold || 60,
+                        criteria: criteriaPayload,
+                      },
+                    });
+                  } else {
+                    await tx.rubric.create({
+                      data: {
+                        taskId: existingTask.id,
+                        maxScore: taskDto.rubric.maxScore || 100,
+                        passThreshold: taskDto.rubric.passThreshold || 60,
+                        criteria: criteriaPayload,
+                      },
+                    });
+                  }
+                }
+
+                // Task Resources: Clean & Re-add
+                await tx.resource.deleteMany({
+                  where: { taskId: existingTask.id, ownerType: 'TASK' },
+                });
+                if (taskDto.resources && taskDto.resources.length > 0) {
+                  await tx.resource.createMany({
+                    data: taskDto.resources.map((r) => ({
+                      ownerType: 'TASK' as const,
+                      taskId: existingTask.id,
+                      type: r.type || 'LINK',
+                      title: r.title.trim(),
+                      url: r.url.trim(),
+                    })),
+                  });
+                }
+              } else {
+                // Create new task
+                const createdTask = await tx.templateTask.create({
+                  data: {
+                    workspaceTemplateId: templateId,
+                    title: taskDto.title.trim(),
+                    description: taskDto.description?.trim() || null,
+                    orderIndex: taskDto.orderIndex !== undefined ? taskDto.orderIndex : tIdx + 1,
+                    ...(taskDto.rubric
                       ? {
                           rubric: {
                             create: {
-                              maxScore: task.rubric.maxScore || 100,
-                              passThreshold: task.rubric.passThreshold || 60,
-                              criteria: task.rubric.criteria || [
+                              maxScore: taskDto.rubric.maxScore || 100,
+                              passThreshold: taskDto.rubric.passThreshold || 60,
+                              criteria: taskDto.rubric.criteria || [
                                 { criterion: 'Implementation & Requirements', maxScore: 50 },
                                 { criterion: 'Code Quality & Best Practices', maxScore: 30 },
                                 { criterion: 'Documentation & Testing', maxScore: 20 },
@@ -431,10 +572,10 @@ export class ProgramsService {
                           },
                         }
                       : {}),
-                    ...(task.resources && task.resources.length > 0
+                    ...(taskDto.resources && taskDto.resources.length > 0
                       ? {
                           resources: {
-                            create: task.resources.map((r) => ({
+                            create: taskDto.resources.map((r) => ({
                               ownerType: 'TASK' as const,
                               type: r.type || 'LINK',
                               title: r.title.trim(),
@@ -445,7 +586,34 @@ export class ProgramsService {
                       : {}),
                   },
                 });
+                taskId = createdTask.id;
               }
+
+              updatedTaskIds.push(taskId);
+            }
+
+            // Remove any tasks that were deleted by admin (only if not referenced)
+            for (const oldTask of existingTasks) {
+              if (!updatedTaskIds.includes(oldTask.id)) {
+                const referencedCount = await tx.workspaceTask.count({
+                  where: { templateTaskId: oldTask.id },
+                });
+                if (referencedCount === 0) {
+                  await tx.templateTask.delete({ where: { id: oldTask.id } });
+                }
+              }
+            }
+          }
+        }
+
+        // Remove any projects that were deleted by admin (only if not referenced by enrollments)
+        for (const oldProj of existingProjects) {
+          if (!updatedProjectIds.includes(oldProj.id)) {
+            const enrolledCount = await tx.enrollmentProject.count({
+              where: { projectId: oldProj.id },
+            });
+            if (enrolledCount === 0) {
+              await tx.project.delete({ where: { id: oldProj.id } });
             }
           }
         }
