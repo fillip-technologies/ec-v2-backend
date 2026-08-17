@@ -138,7 +138,6 @@ model AiReview {
   passed            Boolean    @default(false)
   criteriaBreakdown Json       @map("criteria_breakdown")
   feedback          String     @db.Text
-  improvements      String?    @db.Text
 
   submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
 

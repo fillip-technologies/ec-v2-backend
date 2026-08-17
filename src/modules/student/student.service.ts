@@ -162,7 +162,6 @@ export class StudentService {
         maxScore: r.maxScore,
         breakdown: r.criteriaBreakdown,
         feedback: r.feedback,
-        improvements: r.improvements,
       };
     }
 
@@ -250,9 +249,17 @@ export class StudentService {
                     templateTask: {
                       include: {
                         resources: true,
+                        rubric: true,
                       },
                     },
                     progress: true,
+                    submissions: {
+                      orderBy: { createdAt: 'desc' },
+                      take: 1,
+                      include: {
+                        aiReview: true,
+                      },
+                    },
                   },
                 },
               },
@@ -294,6 +301,22 @@ export class StudentService {
             hoursLogged += hoursPerTask;
           }
 
+          const latestSub = t.submissions?.[0];
+          const latestReview = latestSub?.aiReview;
+
+          let criteriaBreakdown: any = null;
+          if (latestReview?.criteriaBreakdown) {
+            if (typeof latestReview.criteriaBreakdown === 'string') {
+              try {
+                criteriaBreakdown = JSON.parse(latestReview.criteriaBreakdown);
+              } catch {
+                criteriaBreakdown = null;
+              }
+            } else {
+              criteriaBreakdown = latestReview.criteriaBreakdown;
+            }
+          }
+
           return {
             id: t.id,
             title: t.title,
@@ -301,6 +324,16 @@ export class StudentService {
             orderIndex: t.orderIndex,
             status: storedTaskStatus,
             resources: t.templateTask?.resources || [],
+            latestReview: latestReview
+              ? {
+                  score: latestReview.score,
+                  maxScore: latestReview.maxScore || t.templateTask?.rubric?.maxScore || 100,
+                  passThreshold: t.templateTask?.rubric?.passThreshold || 60,
+                  feedback: latestReview.feedback,
+                  criteriaBreakdown,
+                  submittedAt: latestSub?.createdAt,
+                }
+              : null,
           };
         });
 

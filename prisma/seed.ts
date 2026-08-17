@@ -864,7 +864,6 @@ async function main() {
                 feedback: passed
                   ? 'Clean API controller isolation and zero lint errors across all microservice routes.'
                   : 'Unit tests failed for edge case handling. Please fix failing assertions and resubmit.',
-                improvements: passed ? 'Consider adding Redis caching for hot paths.' : 'Fix broken unit test specs in test/suite.spec.ts',
               },
               create: {
                 submissionId: sub.id,
@@ -878,7 +877,6 @@ async function main() {
                 feedback: passed
                   ? 'Clean API controller isolation and zero lint errors across all microservice routes.'
                   : 'Unit tests failed for edge case handling. Please fix failing assertions and resubmit.',
-                improvements: passed ? 'Consider adding Redis caching for hot paths.' : 'Fix broken unit test specs in test/suite.spec.ts',
               },
             });
           }
