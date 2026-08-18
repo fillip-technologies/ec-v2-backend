@@ -35,26 +35,58 @@ export class AuthService {
       throw new BadRequestException('An account with this email address already exists');
     }
 
-    // 2. Validate Country ID
-    const country = await this.prisma.country.findUnique({
-      where: { id: dto.countryId },
+    // 2. Validate Country ID (default to 1 or first active country if not provided)
+    let countryId = dto.countryId ? Number(dto.countryId) : 1;
+    let country = await this.prisma.country.findUnique({
+      where: { id: countryId },
     });
 
     if (!country) {
-      throw new BadRequestException(`Selected country ID (${dto.countryId}) does not exist`);
-    }
-
-    // 3. Validate College ID if provided
-    if (dto.collegeId) {
-      const college = await this.prisma.college.findUnique({
-        where: { id: dto.collegeId },
+      const defaultCountry = await this.prisma.country.findFirst({
+        where: { isActive: true },
       });
-      if (!college) {
-        throw new BadRequestException(`Selected college ID (${dto.collegeId}) does not exist`);
+      if (defaultCountry) {
+        countryId = defaultCountry.id;
+      } else {
+        throw new BadRequestException(`Selected country ID (${countryId}) does not exist`);
       }
     }
 
-    // 4. Resolve or create Student role
+    // 3. Resolve names (split full name if necessary)
+    let firstName = (dto.firstName || '').trim();
+    let lastName = (dto.lastName || '').trim();
+    if (!firstName && dto.name) {
+      const parts = dto.name.trim().split(/\s+/);
+      firstName = parts[0] || 'Student';
+      lastName = parts.slice(1).join(' ') || '';
+    }
+    if (!firstName) firstName = 'Student';
+
+    // 4. Resolve College ID vs Custom / Other College Name
+    let collegeId: number | null = dto.collegeId ? Number(dto.collegeId) : null;
+    let customCollegeName: string | null = (dto.customCollegeName || dto.college_name || '').trim() || null;
+
+    if (collegeId) {
+      const college = await this.prisma.college.findUnique({
+        where: { id: collegeId },
+      });
+      if (!college) {
+        collegeId = null;
+      }
+    } else if (customCollegeName && customCollegeName.toLowerCase() !== 'other') {
+      // Check if there is a match in registered colleges database
+      const matchedCollege = await this.prisma.college.findFirst({
+        where: {
+          name: { equals: customCollegeName },
+        },
+      });
+      if (matchedCollege) {
+        collegeId = matchedCollege.id;
+        customCollegeName = null;
+      }
+    }
+
+    // 5. Resolve or create Student role
     let studentRole = await this.prisma.role.findUnique({
       where: { name: 'student' },
     });
@@ -65,22 +97,26 @@ export class AuthService {
       });
     }
 
-    // 5. Hash password
+    // 6. Hash password
     const hashedPassword = await bcrypt.hash(dto.password, 10);
 
-    // 6. Create User and linked Student record
+    // 7. Create User and linked Student record with academic details
     const user = await this.prisma.user.create({
       data: {
         email,
         password: hashedPassword,
-        phoneNo: dto.phoneNo,
+        phoneNo: dto.phoneNo?.trim() || 'N/A',
         roleId: studentRole.id,
-        countryId: dto.countryId,
+        countryId,
         student: {
           create: {
-            firstName: dto.firstName.trim(),
-            lastName: dto.lastName.trim(),
-            collegeId: dto.collegeId || null,
+            firstName,
+            lastName,
+            collegeId: collegeId || null,
+            customCollegeName: customCollegeName || null,
+            usn: dto.usn?.trim() || null,
+            branch: dto.branch?.trim() || null,
+            graduationYear: dto.graduationYear ? Number(dto.graduationYear) : null,
           },
         },
       },
@@ -106,6 +142,21 @@ export class AuthService {
       refreshToken: tokens.refreshToken,
       user: userWithoutPassword,
     };
+  }
+
+  /**
+   * Get public approved colleges list for registration
+   */
+  async getPublicColleges() {
+    return await this.prisma.college.findMany({
+      where: { status: 'approved' },
+      select: {
+        id: true,
+        name: true,
+        address: true,
+      },
+      orderBy: { name: 'asc' },
+    });
   }
 
   /**

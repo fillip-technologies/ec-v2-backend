@@ -864,15 +864,33 @@ export class PaymentsService {
             userid: true,
             firstName: true,
             lastName: true,
+            customCollegeName: true,
+            usn: true,
+            college: { select: { id: true, name: true } },
             user: {
               select: { id: true, email: true, phoneNo: true },
             },
           },
         },
-        program: { select: { id: true, title: true, slug: true } },
-        payments: true,
-        coupon: { select: { code: true } },
-        enrollment: { select: { id: true, status: true } },
+        program: { select: { id: true, title: true, slug: true, durationHours: true } },
+        payments: {
+          orderBy: { createdAt: 'desc' },
+        },
+        coupon: {
+          select: {
+            id: true,
+            code: true,
+            status: true,
+            batch: {
+              select: {
+                id: true,
+                name: true,
+                college: { select: { id: true, name: true } },
+              },
+            },
+          },
+        },
+        enrollment: { select: { id: true, status: true, createdAt: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -887,14 +905,25 @@ export class PaymentsService {
             userid: true,
             firstName: true,
             lastName: true,
+            customCollegeName: true,
+            usn: true,
+            college: { select: { id: true, name: true } },
             user: {
               select: { id: true, email: true, phoneNo: true },
             },
           },
         },
         program: true,
-        payments: true,
-        coupon: true,
+        payments: {
+          orderBy: { createdAt: 'desc' },
+        },
+        coupon: {
+          include: {
+            batch: {
+              include: { college: true },
+            },
+          },
+        },
         enrollment: true,
       },
     });

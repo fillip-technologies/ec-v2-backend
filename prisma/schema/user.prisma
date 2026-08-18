@@ -68,23 +68,29 @@ model RefreshToken {
 }
 
 model Student {
-  userid         Int       @map("user_id") @id
-  firstName      String    @map("first_name")
-  lastName       String    @map("last_name")
+  userid            Int       @map("user_id") @id
+  firstName         String    @map("first_name")
+  lastName          String    @map("last_name")
 
   // Optional College relation (nullable)
-  collegeId Int?     @map("college_id")
-  college   College? @relation(fields: [collegeId], references: [id], onDelete: SetNull)
+  collegeId         Int?      @map("college_id")
+  college           College?  @relation(fields: [collegeId], references: [id], onDelete: SetNull)
 
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  // Custom / Unlisted College Name (When "Other" is selected)
+  customCollegeName String?   @map("custom_college_name")
+  usn               String?   @map("usn")
+  branch            String?   @map("branch")
+  graduationYear    Int?      @map("graduation_year")
 
-  enrollments Enrollment[]
-  submissions Submission[]
-  certificates Certificate[]
-  orders      Order[]
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
 
-  user           User      @relation(fields: [userid], references: [id], onDelete: Cascade)
+  enrollments       Enrollment[]
+  submissions       Submission[]
+  certificates      Certificate[]
+  orders            Order[]
+
+  user              User      @relation(fields: [userid], references: [id], onDelete: Cascade)
 
   @@map("students")
 }

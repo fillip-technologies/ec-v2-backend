@@ -95,6 +95,17 @@ export class AuthController {
   }
 
   /**
+   * GET /auth/colleges
+   * Public list of approved colleges for registration
+   */
+  @ApiOperation({ summary: 'Get public list of approved colleges for registration' })
+  @Get('colleges')
+  @HttpCode(HttpStatus.OK)
+  async getPublicColleges() {
+    return this.authService.getPublicColleges();
+  }
+
+  /**
    * POST /auth/login
    */
   @ApiOperation({ summary: 'User login' })

@@ -13,29 +13,60 @@ export class RegisterStudentDto {
   password: string;
 
   /** Contact phone number */
+  @IsOptional()
   @IsString()
-  @IsNotEmpty({ message: 'Phone number is required' })
-  phoneNo: string;
+  phoneNo?: string;
 
-  /** Country ID from countries table */
+  /** Country ID from countries table (defaults to 1 if omitted) */
+  @IsOptional()
   @Type(() => Number)
   @IsInt({ message: 'Country ID must be a valid integer' })
-  @IsNotEmpty({ message: 'Country ID is required' })
-  countryId: number;
+  countryId?: number;
 
-  /** Student first name */
+  /** Student first name (or combined full name in 'name' or 'firstName') */
+  @IsOptional()
   @IsString()
-  @IsNotEmpty({ message: 'First name is required' })
-  firstName: string;
+  firstName?: string;
 
   /** Student last name */
+  @IsOptional()
   @IsString()
-  @IsNotEmpty({ message: 'Last name is required' })
-  lastName: string;
+  lastName?: string;
 
-  /** Optional College ID (if student belongs to a registered college) */
+  /** Optional full name */
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  /** Optional College ID (if student belongs to a registered partner college) */
   @IsOptional()
   @Type(() => Number)
   @IsInt({ message: 'College ID must be a valid integer' })
   collegeId?: number;
+
+  /** Custom / Unlisted College Name (if college is not in partner list or "Other" is chosen) */
+  @IsOptional()
+  @IsString()
+  customCollegeName?: string;
+
+  /** Alias for custom college name passed from frontend */
+  @IsOptional()
+  @IsString()
+  college_name?: string;
+
+  /** University Roll No / USN */
+  @IsOptional()
+  @IsString()
+  usn?: string;
+
+  /** Branch / Stream / Discipline (e.g. Computer Science, Mechanical, Law) */
+  @IsOptional()
+  @IsString()
+  branch?: string;
+
+  /** Expected Graduation Year (e.g. 2026, 2027) */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  graduationYear?: number;
 }
