@@ -63,6 +63,10 @@ model Program {
   testimonials ProgramTestimonial[]
   faqs ProgramFaq[]
 
+  orders        Order[]
+  seatOrders    SeatOrder[]
+  couponBatches CouponBatch[]
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

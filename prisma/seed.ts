@@ -980,6 +980,75 @@ async function main() {
 
   console.log('  ✅ Scenario students seeded with dynamic project matching: Priya (Cybersecurity), Vikram (Cloud + Fullstack), Kavya (IoT Completed)');
 
+  console.log('🌱 Seeding PaymentGatewayConfigs...');
+  const razorpayConfig = await prisma.paymentGatewayConfig.upsert({
+    where: { code: 'razorpay' },
+    update: { name: 'Razorpay', isActive: true, priority: 1 },
+    create: { code: 'razorpay', name: 'Razorpay', isActive: true, priority: 1 },
+  });
+
+  for (let cId = 1; cId <= 4; cId++) {
+    await prisma.gatewayCountry.upsert({
+      where: { gatewayId_countryId: { gatewayId: razorpayConfig.id, countryId: cId } },
+      update: {},
+      create: { gatewayId: razorpayConfig.id, countryId: cId },
+    });
+  }
+  console.log('  ✅ Razorpay Gateway Config & Country mappings seeded');
+
+  console.log('🌱 Seeding Sample B2B Seat Order & Coupon Batch...');
+  const sampleSeatOrder = await prisma.seatOrder.upsert({
+    where: { id: 1 },
+    update: { status: 'PAID', invoiceRef: 'INV-VIT-2026-001' },
+    create: {
+      id: 1,
+      collegeId: 1, // VIT
+      programId: 1, // Full Stack
+      seatsPurchased: 5,
+      seatsRedeemed: 1,
+      amount: 24995.0,
+      currency: 'INR',
+      status: 'PAID',
+      invoiceRef: 'INV-VIT-2026-001',
+    },
+  });
+
+  const sampleBatch = await prisma.couponBatch.upsert({
+    where: { batchCode: 'EC-VIT-2026-A1' },
+    update: {},
+    create: {
+      collegeId: 1,
+      seatOrderId: sampleSeatOrder.id,
+      programId: 1,
+      batchCode: 'EC-VIT-2026-A1',
+      totalCoupons: 5,
+    },
+  });
+
+  // Seed 5 sample coupons
+  const sampleCoupons = [
+    { code: 'EC-VIT-001-A9F1', status: 'REDEEMED' as const, redeemedByUserId: 3 },
+    { code: 'EC-VIT-002-B8C2', status: 'ACTIVE' as const },
+    { code: 'EC-VIT-003-C7D3', status: 'ACTIVE' as const },
+    { code: 'EC-VIT-004-D6E4', status: 'ACTIVE' as const },
+    { code: 'EC-VIT-005-E5F5', status: 'ACTIVE' as const },
+  ];
+
+  for (const c of sampleCoupons) {
+    await prisma.coupon.upsert({
+      where: { code: c.code },
+      update: { status: c.status, redeemedByUserId: c.redeemedByUserId || null },
+      create: {
+        batchId: sampleBatch.id,
+        code: c.code,
+        status: c.status,
+        redeemedByUserId: c.redeemedByUserId || null,
+        redeemedAt: c.status === 'REDEEMED' ? new Date() : null,
+      },
+    });
+  }
+  console.log('  ✅ Sample B2B Seat Order (5 seats) & Coupons seeded (Code: EC-VIT-002-B8C2)');
+
   await prisma.$disconnect();
   console.log('✨ GRANULAR RESOURCE-ACTION PERMISSIONS SEEDED SUCCESSFULLY!');
 }

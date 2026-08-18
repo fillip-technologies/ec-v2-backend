@@ -22,6 +22,8 @@ model Country {
   countriescolleges College[]
   programs          Program[]
   pricings          ProgramPricing[]
+
+  gatewayCountries GatewayCountry[]
   
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
@@ -80,6 +82,7 @@ model Student {
   enrollments Enrollment[]
   submissions Submission[]
   certificates Certificate[]
+  orders      Order[]
 
   user           User      @relation(fields: [userid], references: [id], onDelete: Cascade)
 
@@ -97,6 +100,9 @@ model College {
   country        Country   @relation(fields: [countryId], references: [id])
   members        CollegeMember[]
   students       Student[]
+
+  seatOrders    SeatOrder[]
+  couponBatches CouponBatch[]
 
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")

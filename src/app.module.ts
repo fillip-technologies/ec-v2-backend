@@ -9,6 +9,7 @@ import { CountriesModule } from './modules/countries/countries.module';
 import { StudentModule } from './modules/student/student.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { CollegeModule } from './modules/college/college.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { CollegeModule } from './modules/college/college.module';
     StudentModule,
     AdminModule,
     CollegeModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

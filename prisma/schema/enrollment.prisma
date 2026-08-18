@@ -29,6 +29,10 @@ model Enrollment {
 
   selectedProjects EnrollmentProject[]
   certificate      Certificate?
+  
+  orderId Int? @unique @map("order_id")
+  order Order? @relation(fields: [orderId], references: [id])
+
 
   enrolledAt  DateTime  @default(now()) @map("enrolled_at")
   completedAt DateTime? @map("completed_at")
