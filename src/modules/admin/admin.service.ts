@@ -139,6 +139,168 @@ export class AdminService {
   }
 
   /**
+   * GET /admin/colleges/:id
+   * Complete 360-degree college dossier with B2B seat purchases, coupon batches,
+   * college member coordinators, and enrolled student cohort metrics
+   */
+  async getCollegeDetail(id: number) {
+    const college = await this.prisma.college.findUnique({
+      where: { id },
+      include: {
+        country: true,
+        members: {
+          include: {
+            user: {
+              include: {
+                role: true,
+              },
+            },
+          },
+        },
+        seatOrders: {
+          include: {
+            program: {
+              select: { id: true, title: true, slug: true, durationHours: true },
+            },
+            couponBatch: {
+              select: { id: true, batchCode: true, totalCoupons: true },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        couponBatches: {
+          include: {
+            program: {
+              select: { id: true, title: true, slug: true, durationHours: true },
+            },
+            seatOrder: {
+              select: { id: true, amount: true, status: true, invoiceRef: true },
+            },
+            coupons: {
+              include: {
+                orders: {
+                  include: {
+                    student: {
+                      select: {
+                        userid: true,
+                        firstName: true,
+                        lastName: true,
+                        usn: true,
+                        user: { select: { email: true, phoneNo: true } },
+                      },
+                    },
+                  },
+                },
+              },
+              orderBy: { id: 'asc' },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        students: {
+          include: {
+            user: {
+              select: { id: true, email: true, phoneNo: true, status: true, createdAt: true },
+            },
+            enrollments: {
+              include: {
+                program: { select: { id: true, title: true, slug: true, durationHours: true } },
+                certificate: true,
+                _count: { select: { selectedProjects: true } },
+              },
+            },
+            certificates: {
+              include: {
+                enrollment: {
+                  include: {
+                    program: { select: { id: true, title: true } },
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    if (!college) {
+      throw new NotFoundException(`College ID ${id} not found.`);
+    }
+
+    // Aggregations
+    const totalStudents = college.students.length;
+    const totalSeatOrders = college.seatOrders.length;
+    const totalSeatsPurchased = college.seatOrders.reduce((sum, so) => sum + (so.seatsPurchased || 0), 0);
+    const totalSeatsRedeemed = college.seatOrders.reduce((sum, so) => sum + (so.seatsRedeemed || 0), 0);
+    const totalB2BRevenue = college.seatOrders
+      .filter((so) => so.status === 'PAID')
+      .reduce((sum, so) => sum + Number(so.amount || 0), 0);
+    const totalCouponBatches = college.couponBatches.length;
+
+    // Collect all unique certificates across all students of this college
+    const allCertificates = college.students.flatMap((s) => s.certificates);
+    const totalCertificatesIssued = allCertificates.length;
+
+    const allEnrollments = college.students.flatMap((s) => s.enrollments);
+    const activeEnrollments = allEnrollments.filter((e) => e.status === 'ACTIVE').length;
+    const completedEnrollments = allEnrollments.filter((e) => e.status === 'COMPLETED').length;
+
+    return {
+      college: {
+        id: college.id,
+        name: college.name,
+        address: college.address,
+        status: college.status,
+        countryId: college.countryId,
+        country: college.country,
+        createdAt: college.createdAt,
+        updatedAt: college.updatedAt,
+      },
+      members: college.members.map((m) => ({
+        userId: m.userId,
+        email: m.user.email,
+        phoneNo: m.user.phoneNo,
+        status: m.user.status,
+        roleName: m.user.role?.name || 'college',
+        joinedAt: m.createdAt,
+      })),
+      seatOrders: college.seatOrders,
+      couponBatches: college.couponBatches,
+      students: college.students.map((s) => ({
+        id: s.userid,
+        userId: s.userid,
+        name: `${s.firstName} ${s.lastName}`.trim(),
+        firstName: s.firstName,
+        lastName: s.lastName,
+        usn: s.usn,
+        branch: s.branch,
+        graduationYear: s.graduationYear,
+        email: s.user?.email || 'N/A',
+        phoneNo: s.user?.phoneNo || 'N/A',
+        status: s.user?.status || 'active',
+        enrollmentCount: s.enrollments.length,
+        enrollments: s.enrollments,
+        certificates: s.certificates,
+        createdAt: s.createdAt,
+      })),
+      certificates: allCertificates,
+      metrics: {
+        totalStudents,
+        totalSeatOrders,
+        totalSeatsPurchased,
+        totalSeatsRedeemed,
+        seatUtilizationRate: totalSeatsPurchased > 0 ? Math.round((totalSeatsRedeemed / totalSeatsPurchased) * 100) : 0,
+        totalB2BRevenue,
+        totalCouponBatches,
+        totalCertificatesIssued,
+        activeEnrollments,
+        completedEnrollments,
+      },
+    };
+  }
+
+  /**
    * GET /admin/users
    * List platform users with optional role and status filters
    */
@@ -169,6 +331,7 @@ export class AdminService {
     return users.map((u) => {
       const studentName = u.student ? `${u.student.firstName} ${u.student.lastName}`.trim() : null;
       const collegeName = u.student?.college?.name || u.collegeMembers?.[0]?.college?.name || null;
+      const collegeId = u.collegeMembers?.[0]?.collegeId || (u.role?.name?.toLowerCase() === 'college' ? u.student?.collegeId : null);
 
       return {
         id: u.id,
@@ -179,6 +342,8 @@ export class AdminService {
         status: u.status,
         displayName: studentName || collegeName || u.email.split('@')[0],
         collegeName,
+        collegeId,
+        studentId: u.student ? u.id : null,
         createdAt: u.createdAt,
       };
     });

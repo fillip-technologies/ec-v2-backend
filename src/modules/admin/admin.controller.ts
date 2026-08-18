@@ -68,6 +68,18 @@ export class AdminController {
   }
 
   /**
+   * GET /admin/colleges/:id
+   * Complete 360-degree college dossier with B2B seat purchases, coupon batches, and student cohorts
+   */
+  @ApiOperation({ summary: 'Get full college dossier, seat allocations, batches, and student cohort audit' })
+  @ApiResponse({ status: 200, description: 'College complete dossier returned successfully.' })
+  @Permissions('college:manage')
+  @Get('colleges/:id')
+  async getCollegeDetail(@Param('id', ParseIntPipe) id: number) {
+    return this.adminService.getCollegeDetail(id);
+  }
+
+  /**
    * GET /admin/users
    * List system users with role and status filters
    */
