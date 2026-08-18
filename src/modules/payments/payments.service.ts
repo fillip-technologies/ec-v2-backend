@@ -492,7 +492,11 @@ export class PaymentsService {
   // 7. B2B SEAT ORDERS & COUPON BATCH GENERATION
   // ===========================================================================
 
-  async createSeatOrder(collegeId: number, dto: CreateSeatOrderDto) {
+  async createSeatOrder(
+    collegeId: number,
+    dto: CreateSeatOrderDto,
+    isAdmin = false,
+  ) {
     const program = await this.prisma.program.findUnique({
       where: { id: dto.programId },
       include: { pricings: true },
@@ -504,7 +508,72 @@ export class PaymentsService {
       program.pricings.find((p) => p.currency === (dto.currency || 'INR')) ||
       program.pricings[0];
     const unitPrice = pricing ? Number(pricing.amount) : 4999;
-    const totalAmount = dto.amount !== undefined ? dto.amount : unitPrice * dto.seatsPurchased;
+    const totalAmount =
+      dto.amount !== undefined ? dto.amount : unitPrice * dto.seatsPurchased;
+
+    // If Admin triggers autoGenerateCoupons, create SeatOrder as PAID and immediately generate coupons
+    if (isAdmin && dto.autoGenerateCoupons !== false) {
+      return await this.prisma.$transaction(async (tx) => {
+        const college = await tx.college.findUnique({ where: { id: collegeId } });
+        if (!college) throw new NotFoundException('College not found.');
+
+        const seatOrder = await tx.seatOrder.create({
+          data: {
+            collegeId,
+            programId: dto.programId,
+            seatsPurchased: dto.seatsPurchased,
+            amount: totalAmount,
+            currency: dto.currency || pricing?.currency || 'INR',
+            status: 'PAID',
+            invoiceRef: dto.invoiceRef || `INV-ADM-${Date.now()}`,
+          },
+          include: {
+            program: { select: { id: true, title: true, slug: true } },
+            college: { select: { id: true, name: true } },
+          },
+        });
+
+        const prefix = (
+          dto.batchCodePrefix ||
+          `EC-${college.name.substring(0, 4).toUpperCase()}`
+        ).replace(/[^A-Z0-9]/g, '');
+
+        const batchCode = `${prefix}-${Date.now().toString(36).toUpperCase()}`;
+
+        const batch = await tx.couponBatch.create({
+          data: {
+            collegeId,
+            seatOrderId: seatOrder.id,
+            programId: dto.programId,
+            batchCode,
+            totalCoupons: dto.seatsPurchased,
+          },
+        });
+
+        const couponsData: { batchId: number; code: string; status: 'ACTIVE' }[] = [];
+        for (let i = 1; i <= dto.seatsPurchased; i++) {
+          const rand = crypto.randomBytes(3).toString('hex').toUpperCase();
+          const code = `${batchCode}-${String(i).padStart(3, '0')}-${rand}`;
+          couponsData.push({
+            batchId: batch.id,
+            code,
+            status: 'ACTIVE',
+          });
+        }
+
+        await tx.coupon.createMany({ data: couponsData });
+
+        return {
+          ...seatOrder,
+          couponBatch: {
+            id: batch.id,
+            batchCode: batch.batchCode,
+            totalCoupons: dto.seatsPurchased,
+          },
+          message: `Issued ${dto.seatsPurchased} single-use coupon codes for ${college.name}.`,
+        };
+      });
+    }
 
     return await this.prisma.seatOrder.create({
       data: {
@@ -569,11 +638,16 @@ export class PaymentsService {
         throw new BadRequestException('Seat order has already been marked as paid.');
       }
 
+      const finalSeats = dto.seatsPurchased || seatOrder.seatsPurchased;
+      const finalAmount = dto.amount !== undefined ? dto.amount : seatOrder.amount;
+
       // 1. Update SeatOrder to PAID
       await tx.seatOrder.update({
         where: { id: seatOrderId },
         data: {
           status: 'PAID',
+          seatsPurchased: finalSeats,
+          amount: finalAmount,
           ...(dto.invoiceRef ? { invoiceRef: dto.invoiceRef } : {}),
         },
       });
@@ -592,14 +666,14 @@ export class PaymentsService {
           seatOrderId: seatOrder.id,
           programId: seatOrder.programId,
           batchCode,
-          totalCoupons: seatOrder.seatsPurchased,
+          totalCoupons: finalSeats,
         },
       });
 
       // 3. Generate N distinct single-use coupons
       const couponsData: { batchId: number; code: string; status: 'ACTIVE' }[] = [];
 
-      for (let i = 1; i <= seatOrder.seatsPurchased; i++) {
+      for (let i = 1; i <= finalSeats; i++) {
         const rand = crypto.randomBytes(3).toString('hex').toUpperCase();
         const code = `${batchCode}-${String(i).padStart(3, '0')}-${rand}`;
         couponsData.push({
@@ -613,12 +687,43 @@ export class PaymentsService {
 
       return {
         success: true,
-        message: `Seat order confirmed. Generated ${seatOrder.seatsPurchased} coupon codes.`,
+        message: `Seat order confirmed. Generated ${finalSeats} coupon codes for ${seatOrder.college.name}.`,
         batchCode: batch.batchCode,
         batchId: batch.id,
-        totalCoupons: seatOrder.seatsPurchased,
+        totalCoupons: finalSeats,
       };
     });
+  }
+
+  async rejectSeatOrder(
+    seatOrderId: number,
+    dto: { reason?: string },
+  ) {
+    const seatOrder = await this.prisma.seatOrder.findUnique({
+      where: { id: seatOrderId },
+      include: { college: true },
+    });
+
+    if (!seatOrder) throw new NotFoundException('Seat order not found.');
+    if (seatOrder.status === 'PAID') {
+      throw new BadRequestException('Cannot reject an order that has already been confirmed as paid.');
+    }
+
+    const updated = await this.prisma.seatOrder.update({
+      where: { id: seatOrderId },
+      data: {
+        status: 'FAILED',
+        invoiceRef: dto.reason
+          ? `${seatOrder.invoiceRef || 'INV'} [REJECTED: ${dto.reason}]`
+          : seatOrder.invoiceRef,
+      },
+    });
+
+    return {
+      success: true,
+      message: `Seat order #${seatOrderId} for ${seatOrder.college.name} has been rejected.`,
+      seatOrder: updated,
+    };
   }
 
   async getCouponBatchCoupons(batchId: number, user: any) {
@@ -628,9 +733,58 @@ export class PaymentsService {
     const batch = await this.prisma.couponBatch.findUnique({
       where: { id: batchId },
       include: {
-        program: { select: { id: true, title: true } },
-        college: { select: { id: true, name: true } },
+        program: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            durationHours: true,
+          },
+        },
+        college: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        seatOrder: {
+          select: {
+            id: true,
+            collegeId: true,
+            programId: true,
+            seatsPurchased: true,
+            seatsRedeemed: true,
+            amount: true,
+            currency: true,
+            status: true,
+            invoiceRef: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
         coupons: {
+          include: {
+            orders: {
+              select: {
+                id: true,
+                status: true,
+                createdAt: true,
+                student: {
+                  select: {
+                    userid: true,
+                    firstName: true,
+                    lastName: true,
+                    user: {
+                      select: {
+                        email: true,
+                        phoneNo: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
           orderBy: { id: 'asc' },
         },
       },
@@ -647,7 +801,32 @@ export class PaymentsService {
       }
     }
 
-    return batch;
+    const formattedCoupons = batch.coupons.map((c) => {
+      const redemptionOrder = c.orders?.[0];
+      const student = redemptionOrder?.student;
+      return {
+        id: c.id,
+        code: c.code,
+        status: c.status,
+        redeemedByUserId: c.redeemedByUserId,
+        redeemedAt: c.redeemedAt,
+        expiresAt: c.expiresAt,
+        student: student
+          ? {
+              userId: student.userid,
+              name: `${student.firstName} ${student.lastName}`.trim(),
+              email: student.user?.email,
+              phone: student.user?.phoneNo,
+              orderId: redemptionOrder.id,
+            }
+          : null,
+      };
+    });
+
+    return {
+      ...batch,
+      coupons: formattedCoupons,
+    };
   }
 
   // ===========================================================================

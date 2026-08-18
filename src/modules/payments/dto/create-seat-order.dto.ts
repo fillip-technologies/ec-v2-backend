@@ -44,6 +44,29 @@ export class CreateSeatOrderDto {
   @IsOptional()
   @IsString()
   invoiceRef?: string;
+
+  @ApiPropertyOptional({
+    description: 'College ID (required when Admin creates seat order directly)',
+    example: 1,
+  })
+  @IsOptional()
+  @IsInt()
+  collegeId?: number;
+
+  @ApiPropertyOptional({
+    description: 'If true, automatically marks as PAID and generates coupons immediately (Admin only)',
+    example: true,
+  })
+  @IsOptional()
+  autoGenerateCoupons?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Optional batch code prefix (e.g. EC-CAMPUS)',
+    example: 'EC-VIT',
+  })
+  @IsOptional()
+  @IsString()
+  batchCodePrefix?: string;
 }
 
 export class ConfirmSeatOrderPaymentDto {
@@ -62,4 +85,31 @@ export class ConfirmSeatOrderPaymentDto {
   @IsOptional()
   @IsString()
   invoiceRef?: string;
+
+  @ApiPropertyOptional({
+    description: 'Optional override of seats count upon confirmation',
+    example: 50,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  seatsPurchased?: number;
+
+  @ApiPropertyOptional({
+    description: 'Optional override of agreed invoice amount upon confirmation',
+    example: 75000,
+  })
+  @IsOptional()
+  @IsNumber()
+  amount?: number;
+}
+
+export class RejectSeatOrderDto {
+  @ApiPropertyOptional({
+    description: 'Reason for rejection/cancellation',
+    example: 'Payment verification failed or duplicate request',
+  })
+  @IsOptional()
+  @IsString()
+  reason?: string;
 }

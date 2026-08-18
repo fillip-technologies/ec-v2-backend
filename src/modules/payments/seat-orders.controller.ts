@@ -35,24 +35,41 @@ export class SeatOrdersController {
 
   /**
    * POST /seat-orders
-   * College requests N seats for a program
+   * College requests N seats, or Admin creates/issues N seats directly for a college
    */
   @Post()
-  @Roles('college')
-  @ApiOperation({ summary: 'College requests N seats for a program' })
+  @Roles('college', 'admin', 'super_admin')
+  @ApiOperation({
+    summary: 'College or Admin creates an institutional seat order / coupon batch',
+  })
   async createSeatOrder(
     @Body() dto: CreateSeatOrderDto,
     @Request() req: any,
   ) {
-    const collegeMember = await this.prisma.collegeMember.findFirst({
-      where: { userId: req.user.id },
-    });
+    const roleName =
+      typeof req.user?.role === 'string'
+        ? req.user.role
+        : req.user?.role?.name || '';
+    const isAdmin =
+      roleName.toLowerCase() === 'admin' ||
+      roleName.toLowerCase() === 'super_admin';
 
-    if (!collegeMember) {
-      throw new ForbiddenException('College profile not found.');
+    let collegeId = dto.collegeId;
+
+    if (!isAdmin) {
+      const collegeMember = await this.prisma.collegeMember.findFirst({
+        where: { userId: req.user.id },
+      });
+
+      if (!collegeMember) {
+        throw new ForbiddenException('College profile not found.');
+      }
+      collegeId = collegeMember.collegeId;
+    } else if (!collegeId) {
+      throw new ForbiddenException('collegeId is required for admin-created seat orders.');
     }
 
-    return this.paymentsService.createSeatOrder(collegeMember.collegeId, dto);
+    return this.paymentsService.createSeatOrder(collegeId, dto, isAdmin);
   }
 
   /**
@@ -80,5 +97,21 @@ export class SeatOrdersController {
     @Body() dto: ConfirmSeatOrderPaymentDto,
   ) {
     return this.paymentsService.confirmSeatOrderPayment(seatOrderId, dto);
+  }
+
+  /**
+   * PATCH /seat-orders/:id/reject
+   * Admin rejects / cancels a pending seat order
+   */
+  @Patch(':id/reject')
+  @Roles('admin', 'super_admin')
+  @ApiOperation({
+    summary: 'Admin rejects or cancels a pending seat order',
+  })
+  async rejectSeatOrder(
+    @Param('id', ParseIntPipe) seatOrderId: number,
+    @Body() dto: { reason?: string },
+  ) {
+    return this.paymentsService.rejectSeatOrder(seatOrderId, dto);
   }
 }
