@@ -69,6 +69,10 @@ async function main() {
 
     // Analytics Module
     { id: 17, slug: 'report:view', name: 'View Reports', module: 'analytics', description: 'View progress and completion reports', roleIds: [1, 2, 3, 4, 5] },
+
+    // Student & Order Audit Module (Admin & Support)
+    { id: 18, slug: 'student:read', name: 'View Student Details', module: 'admin', description: 'View comprehensive student profile, academic records, workspace progression, billing orders, and certificates', roleIds: [1, 2, 5] },
+    { id: 19, slug: 'order:view', name: 'View Orders', module: 'commerce', description: 'View student order billing and transaction reconciliation records', roleIds: [1, 2, 5] },
   ];
 
   for (const p of permissionsData) {
@@ -86,7 +90,7 @@ async function main() {
       });
     }
   }
-  console.log('  ✅ 17 Granular Resource-Action Permissions & RolePermissions Matrix seeded');
+  console.log('  ✅ 19 Granular Resource-Action Permissions & RolePermissions Matrix seeded');
 
   console.log('🌱 Seeding Countries...');
   const countries = [

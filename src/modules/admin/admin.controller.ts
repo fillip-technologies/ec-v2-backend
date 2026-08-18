@@ -83,6 +83,18 @@ export class AdminController {
   }
 
   /**
+   * GET /admin/students
+   * List all registered students with college and enrollment metrics
+   */
+  @ApiOperation({ summary: 'List all student profiles with academic and enrollment metrics' })
+  @ApiResponse({ status: 200, description: 'Students list returned successfully.' })
+  @Permissions('student:read')
+  @Get('students')
+  async getStudents() {
+    return this.adminService.getStudents();
+  }
+
+  /**
    * PATCH /admin/users/:id/status
    * Change user account status
    */
@@ -125,5 +137,18 @@ export class AdminController {
       body.score ?? 80,
       body.feedback ?? 'Verified by admin',
     );
+  }
+
+  /**
+   * GET /admin/students/:id
+   * Complete 360-degree student portfolio, academic profile, enrollment tracks,
+   * workspace step progression, billing/orders reconciliation, and certificates
+   */
+  @ApiOperation({ summary: 'Get full student profile, workspace progression, billing, and certificates audit' })
+  @ApiResponse({ status: 200, description: 'Student complete audit dossier returned successfully.' })
+  @Permissions('student:read')
+  @Get('students/:id')
+  async getStudentDetail(@Param('id', ParseIntPipe) id: number) {
+    return this.adminService.getStudentDetail(id);
   }
 }

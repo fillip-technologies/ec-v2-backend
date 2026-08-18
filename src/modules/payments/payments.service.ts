@@ -884,7 +884,7 @@ export class PaymentsService {
             batch: {
               select: {
                 id: true,
-                name: true,
+                batchCode: true,
                 college: { select: { id: true, name: true } },
               },
             },

@@ -185,6 +185,57 @@ export class AdminService {
   }
 
   /**
+   * GET /admin/students
+   * List all registered students with college and enrollment metrics
+   */
+  async getStudents() {
+    const students = await this.prisma.student.findMany({
+      include: {
+        user: {
+          include: {
+            country: true,
+          },
+        },
+        college: {
+          select: { id: true, name: true },
+        },
+        _count: {
+          select: {
+            enrollments: true,
+            submissions: true,
+            certificates: true,
+            orders: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return students.map((s) => ({
+      id: s.userid,
+      userId: s.userid,
+      firstName: s.firstName,
+      lastName: s.lastName,
+      name: `${s.firstName} ${s.lastName}`.trim(),
+      email: s.user?.email || 'N/A',
+      phoneNo: s.user?.phoneNo || 'N/A',
+      countryName: s.user?.country?.name || 'India',
+      status: s.user?.status || 'active',
+      usn: s.usn,
+      branch: s.branch,
+      graduationYear: s.graduationYear,
+      customCollegeName: s.customCollegeName,
+      collegeId: s.collegeId,
+      collegeName: s.college?.name || s.customCollegeName || 'N/A',
+      enrollmentCount: s._count.enrollments,
+      submissionCount: s._count.submissions,
+      certificateCount: s._count.certificates,
+      orderCount: s._count.orders,
+      createdAt: s.createdAt,
+    }));
+  }
+
+  /**
    * PATCH /admin/users/:id/status
    * Change user status (active, pending, disabled)
    */
@@ -454,6 +505,251 @@ export class AdminService {
     return {
       message: `Submission ${id} reviewed successfully. Status updated to ${status}.`,
       submission: updatedSub,
+    };
+  }
+
+  /**
+   * GET /admin/students/:id
+   * Complete 360-degree student portfolio, academic profile, enrollment tracks,
+   * workspace step progression, billing/orders reconciliation, and certificates
+   */
+  async getStudentDetail(id: number) {
+    const student = await this.prisma.student.findFirst({
+      where: {
+        OR: [{ userid: id }],
+      },
+      include: {
+        user: {
+          include: {
+            role: true,
+            country: true,
+          },
+        },
+        college: {
+          include: {
+            country: true,
+          },
+        },
+        enrollments: {
+          include: {
+            program: {
+              include: {
+                country: true,
+              },
+            },
+            order: {
+              include: {
+                coupon: {
+                  include: {
+                    batch: {
+                      include: {
+                        college: true,
+                      },
+                    },
+                  },
+                },
+                payments: {
+                  orderBy: { createdAt: 'desc' },
+                },
+              },
+            },
+            certificate: true,
+            selectedProjects: {
+              include: {
+                project: true,
+                workspace: {
+                  include: {
+                    tasks: {
+                      include: {
+                        progress: true,
+                        submissions: {
+                          include: {
+                            aiReview: true,
+                          },
+                          orderBy: { createdAt: 'desc' },
+                        },
+                      },
+                      orderBy: { orderIndex: 'asc' },
+                    },
+                  },
+                },
+              },
+              orderBy: { orderIndex: 'asc' },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        orders: {
+          include: {
+            program: {
+              select: { id: true, title: true, slug: true, durationHours: true },
+            },
+            coupon: {
+              select: {
+                id: true,
+                code: true,
+                status: true,
+                batch: {
+                  select: {
+                    id: true,
+                    batchCode: true,
+                    college: { select: { id: true, name: true } },
+                  },
+                },
+              },
+            },
+            payments: {
+              orderBy: { createdAt: 'desc' },
+            },
+            enrollment: {
+              select: { id: true, status: true, enrolledAt: true, completedAt: true },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        certificates: {
+          include: {
+            enrollment: {
+              include: {
+                program: {
+                  select: { id: true, title: true, slug: true, durationHours: true },
+                },
+              },
+            },
+          },
+          orderBy: { issuedAt: 'desc' },
+        },
+        submissions: {
+          include: {
+            workspaceTask: {
+              include: {
+                studentWorkspace: {
+                  include: {
+                    enrollmentProject: {
+                      include: {
+                        project: { select: { id: true, title: true } },
+                        enrollment: {
+                          include: {
+                            program: { select: { id: true, title: true } },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            aiReview: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    if (!student) {
+      // Fallback: Check if user exists but student record not yet initialized
+      const user = await this.prisma.user.findUnique({
+        where: { id },
+        include: {
+          role: true,
+          country: true,
+          student: true,
+        },
+      });
+
+      if (!user) {
+        throw new NotFoundException(`Student or User with ID ${id} not found.`);
+      }
+
+      return {
+        user: {
+          id: user.id,
+          email: user.email,
+          phoneNo: user.phoneNo,
+          status: user.status,
+          role: user.role,
+          country: user.country,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+        },
+        student: null,
+        enrollments: [],
+        orders: [],
+        certificates: [],
+        submissions: [],
+        metrics: {
+          totalEnrollments: 0,
+          activeEnrollments: 0,
+          completedEnrollments: 0,
+          totalOrders: 0,
+          totalSpent: 0,
+          totalSubmissions: 0,
+          passedSubmissions: 0,
+          averageScore: 0,
+          totalCertificates: 0,
+        },
+      };
+    }
+
+    // Compute Metrics & Aggregations
+    const totalEnrollments = student.enrollments.length;
+    const completedEnrollments = student.enrollments.filter((e) => e.status === 'COMPLETED').length;
+    const activeEnrollments = student.enrollments.filter((e) => e.status === 'ACTIVE').length;
+    const totalOrders = student.orders.length;
+    const totalSpent = student.orders
+      .filter((o) => o.status === 'PAID')
+      .reduce((sum, o) => sum + Number(o.amount || 0), 0);
+    const totalSubmissions = student.submissions.length;
+    const passedSubmissions = student.submissions.filter((s) => s.status === 'PASSED').length;
+
+    const scores = student.submissions
+      .map((s) => s.aiReview?.score)
+      .filter((score): score is number => typeof score === 'number' && score >= 0);
+    const averageScore = scores.length > 0
+      ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+      : 0;
+    const totalCertificates = student.certificates.length;
+
+    return {
+      user: {
+        id: student.user.id,
+        email: student.user.email,
+        phoneNo: student.user.phoneNo,
+        status: student.user.status,
+        role: student.user.role,
+        country: student.user.country,
+        createdAt: student.user.createdAt,
+        updatedAt: student.user.updatedAt,
+      },
+      student: {
+        userId: student.userid,
+        firstName: student.firstName,
+        lastName: student.lastName,
+        fullName: `${student.firstName} ${student.lastName}`.trim(),
+        usn: student.usn,
+        branch: student.branch,
+        graduationYear: student.graduationYear,
+        customCollegeName: student.customCollegeName,
+        collegeId: student.collegeId,
+        college: student.college,
+        createdAt: student.createdAt,
+        updatedAt: student.updatedAt,
+      },
+      enrollments: student.enrollments,
+      orders: student.orders,
+      certificates: student.certificates,
+      submissions: student.submissions,
+      metrics: {
+        totalEnrollments,
+        activeEnrollments,
+        completedEnrollments,
+        totalOrders,
+        totalSpent,
+        totalSubmissions,
+        passedSubmissions,
+        averageScore,
+        totalCertificates,
+      },
     };
   }
 }
