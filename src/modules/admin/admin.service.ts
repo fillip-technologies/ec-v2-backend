@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { buildPaginatedResult } from '../../core/dto/pagination.dto';
 
 @Injectable()
 export class AdminService {
@@ -20,9 +21,11 @@ export class AdminService {
       totalSubmissions,
       pendingColleges,
       recentUsers,
-      paidOrders,
-      paidSeatOrders,
       awaitingSubmissions,
+      orderRevenueAgg,
+      seatOrderRevenueAgg,
+      recentPaidOrders,
+      recentPaidSeatOrders,
     ] = await Promise.all([
       this.prisma.user.count(),
       this.prisma.student.count(),
@@ -44,14 +47,6 @@ export class AdminService {
           role: true,
           country: true,
         },
-      }),
-      this.prisma.order.findMany({
-        where: { status: 'PAID' },
-        select: { amount: true, createdAt: true, currency: true },
-      }),
-      this.prisma.seatOrder.findMany({
-        where: { status: 'PAID' },
-        select: { amount: true, createdAt: true, currency: true },
       }),
       this.prisma.submission.findMany({
         take: 10,
@@ -82,12 +77,37 @@ export class AdminService {
           },
         },
       }),
+      // SQL Aggregate: Total captured orders revenue
+      this.prisma.order.aggregate({
+        _sum: { amount: true },
+        where: { status: 'PAID' },
+      }),
+      // SQL Aggregate: Total captured B2B seat orders revenue
+      this.prisma.seatOrder.aggregate({
+        _sum: { amount: true },
+        where: { status: 'PAID' },
+      }),
+      // Time-bounded transactions for 12-month rolling trend
+      this.prisma.order.findMany({
+        where: {
+          status: 'PAID',
+          createdAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth() - 11, 1) },
+        },
+        select: { amount: true, createdAt: true },
+      }),
+      this.prisma.seatOrder.findMany({
+        where: {
+          status: 'PAID',
+          createdAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth() - 11, 1) },
+        },
+        select: { amount: true, createdAt: true },
+      }),
     ]);
 
-    // Calculate total captured revenue
-    let totalRevenue = 0;
-    paidOrders.forEach((o) => { totalRevenue += Number(o.amount) || 0; });
-    paidSeatOrders.forEach((so) => { totalRevenue += Number(so.amount) || 0; });
+    // Fast SQL Sum of captured platform revenue
+    const totalRevenue =
+      (Number(orderRevenueAgg._sum.amount) || 0) +
+      (Number(seatOrderRevenueAgg._sum.amount) || 0);
 
     // Generate monthly revenue trend (last 12 months)
     const now = new Date();
@@ -104,12 +124,12 @@ export class AdminService {
       });
     }
 
-    const allTransactions = [
-      ...paidOrders.map((o) => ({ amount: Number(o.amount) || 0, createdAt: new Date(o.createdAt) })),
-      ...paidSeatOrders.map((so) => ({ amount: Number(so.amount) || 0, createdAt: new Date(so.createdAt) })),
+    const recentTransactions = [
+      ...recentPaidOrders.map((o) => ({ amount: Number(o.amount) || 0, createdAt: new Date(o.createdAt) })),
+      ...recentPaidSeatOrders.map((so) => ({ amount: Number(so.amount) || 0, createdAt: new Date(so.createdAt) })),
     ];
 
-    allTransactions.forEach((tx) => {
+    recentTransactions.forEach((tx) => {
       const txYear = tx.createdAt.getFullYear();
       const txMonth = tx.createdAt.getMonth();
       const bucket = monthlyTrend.find((m) => m.year === txYear && m.month === txMonth);
@@ -125,7 +145,7 @@ export class AdminService {
       { label: String(currentYear - 1), amount: 0 },
       { label: String(currentYear), amount: 0 },
     ];
-    allTransactions.forEach((tx) => {
+    recentTransactions.forEach((tx) => {
       const txYear = tx.createdAt.getFullYear();
       const bucket = yearlyTrend.find((y) => y.label === String(txYear));
       if (bucket) {
@@ -190,12 +210,64 @@ export class AdminService {
 
   /**
    * GET /admin/colleges
-   * List all colleges with optional status filter
+   * List all colleges with optional status, search, and pagination filters
    */
-  async getColleges(status?: string) {
+  async getColleges(params?: { status?: string; search?: string; page?: number; limit?: number } | string) {
+    const status = typeof params === 'string' ? params : params?.status;
+    const search = typeof params === 'object' ? params?.search : undefined;
+    const page = typeof params === 'object' ? params?.page : undefined;
+    const limit = typeof params === 'object' ? params?.limit : undefined;
+
     const where: any = {};
     if (status) {
       where.status = status;
+    }
+    if (search && search.trim()) {
+      where.OR = [
+        { name: { contains: search.trim() } },
+        { address: { contains: search.trim() } },
+      ];
+    }
+
+    if (page !== undefined || limit !== undefined) {
+      const pageNum = Math.max(1, Number(page) || 1);
+      const limitNum = Math.max(1, Math.min(100, Number(limit) || 20));
+      const skip = (pageNum - 1) * limitNum;
+
+      const [total, colleges] = await Promise.all([
+        this.prisma.college.count({ where }),
+        this.prisma.college.findMany({
+          where,
+          take: limitNum,
+          skip,
+          include: {
+            country: true,
+            _count: {
+              select: {
+                students: true,
+                members: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        }),
+      ]);
+
+      const mapped = colleges.map((c) => ({
+        id: c.id,
+        name: c.name,
+        address: c.address,
+        countryId: c.countryId,
+        countryName: c.country.name,
+        currencyCode: c.country.currencyCode,
+        status: c.status,
+        studentCount: c._count.students,
+        memberCount: c._count.members,
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
+      }));
+
+      return buildPaginatedResult(mapped, total, pageNum, limitNum);
     }
 
     const colleges = await this.prisma.college.findMany({
@@ -416,15 +488,77 @@ export class AdminService {
 
   /**
    * GET /admin/users
-   * List platform users with optional role and status filters
+   * List platform users with optional role, status, search, and pagination filters
    */
-  async getUsers(role?: string, status?: string) {
+  async getUsers(params?: { role?: string; status?: string; search?: string; page?: number; limit?: number } | string, legacyStatus?: string) {
+    const role = typeof params === 'string' ? params : params?.role;
+    const status = typeof params === 'string' ? legacyStatus : params?.status;
+    const search = typeof params === 'object' ? params?.search : undefined;
+    const page = typeof params === 'object' ? params?.page : undefined;
+    const limit = typeof params === 'object' ? params?.limit : undefined;
+
     const where: any = {};
     if (status) {
       where.status = status;
     }
     if (role) {
       where.role = { name: role };
+    }
+    if (search && search.trim()) {
+      where.OR = [
+        { email: { contains: search.trim() } },
+        { phoneNo: { contains: search.trim() } },
+        { student: { firstName: { contains: search.trim() } } },
+        { student: { lastName: { contains: search.trim() } } },
+      ];
+    }
+
+    if (page !== undefined || limit !== undefined) {
+      const pageNum = Math.max(1, Number(page) || 1);
+      const limitNum = Math.max(1, Math.min(100, Number(limit) || 20));
+      const skip = (pageNum - 1) * limitNum;
+
+      const [total, users] = await Promise.all([
+        this.prisma.user.count({ where }),
+        this.prisma.user.findMany({
+          where,
+          take: limitNum,
+          skip,
+          include: {
+            role: true,
+            country: true,
+            student: {
+              include: { college: true },
+            },
+            collegeMembers: {
+              include: { college: true },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        }),
+      ]);
+
+      const mapped = users.map((u) => {
+        const studentName = u.student ? `${u.student.firstName} ${u.student.lastName}`.trim() : null;
+        const collegeName = u.student?.college?.name || u.collegeMembers?.[0]?.college?.name || null;
+        const collegeId = u.collegeMembers?.[0]?.collegeId || (u.role?.name?.toLowerCase() === 'college' ? u.student?.collegeId : null);
+
+        return {
+          id: u.id,
+          email: u.email,
+          phoneNo: u.phoneNo,
+          roleName: u.role.name,
+          countryName: u.country.name,
+          status: u.status,
+          displayName: studentName || collegeName || u.email.split('@')[0],
+          collegeName,
+          collegeId,
+          studentId: u.student ? u.id : null,
+          createdAt: u.createdAt,
+        };
+      });
+
+      return buildPaginatedResult(mapped, total, pageNum, limitNum);
     }
 
     const users = await this.prisma.user.findMany({
@@ -465,10 +599,86 @@ export class AdminService {
 
   /**
    * GET /admin/students
-   * List all registered students with college and enrollment metrics
+   * List registered students with college and enrollment metrics + optional pagination
    */
-  async getStudents() {
+  async getStudents(params?: { collegeId?: number; search?: string; page?: number; limit?: number }) {
+    const where: any = {};
+    if (params?.collegeId) {
+      where.collegeId = params.collegeId;
+    }
+    if (params?.search && params.search.trim()) {
+      const q = params.search.trim();
+      where.OR = [
+        { firstName: { contains: q } },
+        { lastName: { contains: q } },
+        { usn: { contains: q } },
+        { branch: { contains: q } },
+        { customCollegeName: { contains: q } },
+        { user: { email: { contains: q } } },
+      ];
+    }
+
+    if (params?.page !== undefined || params?.limit !== undefined) {
+      const pageNum = Math.max(1, Number(params.page) || 1);
+      const limitNum = Math.max(1, Math.min(100, Number(params.limit) || 20));
+      const skip = (pageNum - 1) * limitNum;
+
+      const [total, students] = await Promise.all([
+        this.prisma.student.count({ where }),
+        this.prisma.student.findMany({
+          where,
+          take: limitNum,
+          skip,
+          include: {
+            user: {
+              include: {
+                country: true,
+              },
+            },
+            college: {
+              select: { id: true, name: true },
+            },
+            _count: {
+              select: {
+                enrollments: true,
+                submissions: true,
+                certificates: true,
+                orders: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        }),
+      ]);
+
+      const mapped = students.map((s) => ({
+        id: s.userid,
+        userId: s.userid,
+        firstName: s.firstName,
+        lastName: s.lastName,
+        name: `${s.firstName} ${s.lastName}`.trim(),
+        email: s.user?.email || 'N/A',
+        phoneNo: s.user?.phoneNo || 'N/A',
+        countryName: s.user?.country?.name || 'India',
+        status: s.user?.status || 'active',
+        usn: s.usn,
+        branch: s.branch,
+        graduationYear: s.graduationYear,
+        customCollegeName: s.customCollegeName,
+        collegeId: s.collegeId,
+        collegeName: s.college?.name || s.customCollegeName || 'N/A',
+        enrollmentCount: s._count.enrollments,
+        submissionCount: s._count.submissions,
+        certificateCount: s._count.certificates,
+        orderCount: s._count.orders,
+        createdAt: s.createdAt,
+      }));
+
+      return buildPaginatedResult(mapped, total, pageNum, limitNum);
+    }
+
     const students = await this.prisma.student.findMany({
+      where,
       include: {
         user: {
           include: {
@@ -546,10 +756,114 @@ export class AdminService {
 
   /**
    * GET /admin/submissions
-   * Returns list of all submissions (waiting for review first)
+   * Returns list of submissions with optional status, search, and pagination filters
    */
-  async getSubmissions() {
+  async getSubmissions(params?: { status?: string; search?: string; page?: number; limit?: number }) {
+    const where: any = {};
+    if (params?.status && params.status !== 'all') {
+      where.status = params.status;
+    }
+    if (params?.search && params.search.trim()) {
+      const q = params.search.trim();
+      where.OR = [
+        { student: { firstName: { contains: q } } },
+        { student: { lastName: { contains: q } } },
+        { student: { user: { email: { contains: q } } } },
+        { workspaceTask: { title: { contains: q } } },
+      ];
+    }
+
+    if (params?.page !== undefined || params?.limit !== undefined) {
+      const pageNum = Math.max(1, Number(params.page) || 1);
+      const limitNum = Math.max(1, Math.min(100, Number(params.limit) || 20));
+      const skip = (pageNum - 1) * limitNum;
+
+      const [total, submissions] = await Promise.all([
+        this.prisma.submission.count({ where }),
+        this.prisma.submission.findMany({
+          where,
+          take: limitNum,
+          skip,
+          include: {
+            student: {
+              include: {
+                user: true,
+              },
+            },
+            workspaceTask: {
+              include: {
+                studentWorkspace: {
+                  include: {
+                    enrollmentProject: {
+                      include: {
+                        project: true,
+                      },
+                    },
+                  },
+                },
+                templateTask: {
+                  include: {
+                    rubric: true,
+                  },
+                },
+              },
+            },
+            aiReview: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        }),
+      ]);
+
+      const mapped = submissions.map((s) => {
+        const studentName = (s.student.firstName || s.student.lastName)
+          ? `${s.student.firstName || ''} ${s.student.lastName || ''}`.trim()
+          : s.student.user?.email?.split('@')[0] || `Student #${s.studentId}`;
+
+        const rubric = s.workspaceTask?.templateTask?.rubric;
+        const maxScore = rubric?.maxScore ?? s.aiReview?.maxScore ?? 100;
+        const passThreshold = rubric?.passThreshold ?? 60;
+
+        let criteria: any[] = [];
+        if (rubric?.criteria) {
+          if (typeof rubric.criteria === 'string') {
+            try {
+              criteria = JSON.parse(rubric.criteria);
+            } catch {
+              criteria = [];
+            }
+          } else if (Array.isArray(rubric.criteria)) {
+            criteria = rubric.criteria as any[];
+          }
+        }
+
+        return {
+          id: s.id,
+          studentId: s.studentId,
+          studentName,
+          studentEmail: s.student.user?.email || 'N/A',
+          projectTitle: s.workspaceTask?.studentWorkspace?.enrollmentProject?.project?.title || 'Capstone Project',
+          taskTitle: s.workspaceTask?.templateTask?.title || s.workspaceTask?.title || 'Deliverable Task',
+          commitHash: s.commitHash ?? null,
+          repoUrl: s.workspaceTask?.studentWorkspace?.repoUrl ?? null,
+          payloadUrl: s.payloadUrl,
+          status: s.status,
+          submittedAt: s.createdAt,
+          workspaceTaskId: s.workspaceTaskId,
+          score: s.aiReview?.score ?? null,
+          feedback: s.aiReview?.feedback ?? null,
+          maxScore,
+          passThreshold,
+          criteria,
+          attemptIndex: s.attemptIndex,
+          createdAt: s.createdAt,
+        };
+      });
+
+      return buildPaginatedResult(mapped, total, pageNum, limitNum);
+    }
+
     const submissions = await this.prisma.submission.findMany({
+      where,
       include: {
         student: {
           include: {
@@ -580,6 +894,10 @@ export class AdminService {
     });
 
     return submissions.map((s) => {
+      const studentName = (s.student.firstName || s.student.lastName)
+        ? `${s.student.firstName || ''} ${s.student.lastName || ''}`.trim()
+        : s.student.user?.email?.split('@')[0] || `Student #${s.studentId}`;
+
       const rubric = s.workspaceTask?.templateTask?.rubric;
       const maxScore = rubric?.maxScore ?? s.aiReview?.maxScore ?? 100;
       const passThreshold = rubric?.passThreshold ?? 60;
@@ -599,12 +917,13 @@ export class AdminService {
 
       return {
         id: s.id,
-        studentName: `${s.student.firstName} ${s.student.lastName}`.trim(),
-        studentEmail: s.student.user.email,
-        projectTitle: s.workspaceTask.studentWorkspace.enrollmentProject.project.title,
-        taskTitle: s.workspaceTask.title,
+        studentId: s.studentId,
+        studentName,
+        studentEmail: s.student.user?.email || 'N/A',
+        projectTitle: s.workspaceTask?.studentWorkspace?.enrollmentProject?.project?.title || 'Capstone Project',
+        taskTitle: s.workspaceTask?.templateTask?.title || s.workspaceTask?.title || 'Deliverable Task',
         commitHash: s.commitHash ?? null,
-        repoUrl: s.workspaceTask.studentWorkspace?.repoUrl ?? null,
+        repoUrl: s.workspaceTask?.studentWorkspace?.repoUrl ?? null,
         payloadUrl: s.payloadUrl,
         status: s.status,
         submittedAt: s.createdAt,
@@ -614,6 +933,8 @@ export class AdminService {
         maxScore,
         passThreshold,
         criteria,
+        attemptIndex: s.attemptIndex,
+        createdAt: s.createdAt,
       };
     });
   }

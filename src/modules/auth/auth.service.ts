@@ -446,7 +446,10 @@ export class AuthService {
       const userTokens = await (this.prisma as any).refreshToken.findMany({
         where: {
           userId: payload.sub,
+          isRevoked: false,
         },
+        take: 5,
+        orderBy: { createdAt: 'desc' },
       });
 
       if (userTokens && userTokens.length > 0) {

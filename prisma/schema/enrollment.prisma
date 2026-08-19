@@ -40,8 +40,10 @@ model Enrollment {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@index([programId, status])   // <- this is the index that makes counting fast
+  @@index([programId, status])
   @@index([studentId])
+  @@index([status])
+  @@index([createdAt])
   @@map("enrollments")
 }
 
@@ -81,6 +83,7 @@ model StudentWorkspace {
 
   createdAt DateTime @default(now()) @map("created_at")
 
+  @@index([workspaceTemplateId])
   @@map("student_workspaces")
 }
 
@@ -99,6 +102,7 @@ model WorkspaceTask {
   submissions Submission[]
 
   @@index([studentWorkspaceId])
+  @@index([templateTaskId])
   @@map("workspace_tasks")
 }
 
@@ -133,6 +137,8 @@ model Submission {
 
   @@index([workspaceTaskId])
   @@index([studentId])
+  @@index([status])
+  @@index([createdAt])
   @@map("submissions")
 }
 
@@ -164,5 +170,6 @@ model Certificate {
   student    Student    @relation(fields: [studentId], references: [userid], onDelete: Cascade)
 
   @@index([studentId])
+  @@index([issuedAt])
   @@map("certificates")
 }

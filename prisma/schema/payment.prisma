@@ -74,6 +74,9 @@ model Order {
 
   @@index([studentId])
   @@index([programId, status])
+  @@index([status])
+  @@index([createdAt])
+  @@index([couponId])
   @@map("orders")
 }
 
@@ -106,6 +109,8 @@ model Payment {
   createdAt        DateTime  @default(now()) @map("created_at")
 
   @@index([orderId])
+  @@index([status])
+  @@index([createdAt])
   @@map("payments")
 }
 
@@ -135,6 +140,8 @@ model SeatOrder {
 
   @@index([collegeId])
   @@index([programId])
+  @@index([status])
+  @@index([createdAt])
   @@map("seat_orders")
 }
 
@@ -179,5 +186,7 @@ model Coupon {
   orders Order[]
 
   @@index([batchId])
+  @@index([status])
+  @@index([redeemedByUserId])
   @@map("coupons")
 }

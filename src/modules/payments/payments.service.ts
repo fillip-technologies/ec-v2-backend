@@ -20,6 +20,7 @@ import {
   CreateGatewayConfigDto,
   UpdateGatewayConfigDto,
 } from './dto/gateway-config.dto';
+import { buildPaginatedResult } from '../../core/dto/pagination.dto';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -856,8 +857,87 @@ export class PaymentsService {
     });
   }
 
-  async getAllOrders() {
+  async getAllOrders(params?: {
+    status?: string;
+    gateway?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const where: any = {};
+    if (params?.status && params.status !== 'all') {
+      where.status = params.status;
+    }
+    if (params?.gateway && params.gateway !== 'all') {
+      where.gateway = params.gateway;
+    }
+    if (params?.search && params.search.trim()) {
+      const q = params.search.trim();
+      where.OR = [
+        { gatewayOrderId: { contains: q } },
+        { receipt: { contains: q } },
+        { student: { firstName: { contains: q } } },
+        { student: { lastName: { contains: q } } },
+        { student: { user: { email: { contains: q } } } },
+        { program: { title: { contains: q } } },
+        { coupon: { code: { contains: q } } },
+      ];
+    }
+
+    if (params?.page !== undefined || params?.limit !== undefined) {
+      const pageNum = Math.max(1, Number(params.page) || 1);
+      const limitNum = Math.max(1, Math.min(100, Number(params.limit) || 20));
+      const skip = (pageNum - 1) * limitNum;
+
+      const [total, orders] = await Promise.all([
+        this.prisma.order.count({ where }),
+        this.prisma.order.findMany({
+          where,
+          take: limitNum,
+          skip,
+          include: {
+            student: {
+              select: {
+                userid: true,
+                firstName: true,
+                lastName: true,
+                customCollegeName: true,
+                usn: true,
+                college: { select: { id: true, name: true } },
+                user: {
+                  select: { id: true, email: true, phoneNo: true },
+                },
+              },
+            },
+            program: { select: { id: true, title: true, slug: true, durationHours: true } },
+            payments: {
+              orderBy: { createdAt: 'desc' },
+            },
+            coupon: {
+              select: {
+                id: true,
+                code: true,
+                status: true,
+                batch: {
+                  select: {
+                    id: true,
+                    batchCode: true,
+                    college: { select: { id: true, name: true } },
+                  },
+                },
+              },
+            },
+            enrollment: { select: { id: true, status: true, createdAt: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+        }),
+      ]);
+
+      return buildPaginatedResult(orders, total, pageNum, limitNum);
+    }
+
     return await this.prisma.order.findMany({
+      where,
       include: {
         student: {
           select: {

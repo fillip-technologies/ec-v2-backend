@@ -22,9 +22,11 @@ export function buildConnectionUrl(protocol: 'mysql' | 'postgresql'): string {
     process.env.DATABASE_PORT || (protocol === 'postgresql' ? '5432' : '3306');
   const database = process.env.DATABASE_NAME || 'engineers_clinic';
 
+  const poolParams = protocol === 'mysql' ? 'connectionLimit=20' : 'connection_limit=20';
+
   return password
-    ? `${protocol}://${user}:${password}@${host}:${port}/${database}`
-    : `${protocol}://${user}@${host}:${port}/${database}`;
+    ? `${protocol}://${user}:${password}@${host}:${port}/${database}?${poolParams}`
+    : `${protocol}://${user}@${host}:${port}/${database}?${poolParams}`;
 }
 
 /**

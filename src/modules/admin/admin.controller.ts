@@ -42,14 +42,19 @@ export class AdminController {
 
   /**
    * GET /admin/colleges
-   * List all colleges with optional status filter
+   * List all colleges with optional status, search, and pagination filters
    */
   @ApiOperation({ summary: 'List all registered college institutions' })
   @ApiResponse({ status: 200, description: 'Colleges list returned successfully.' })
   @Permissions('college:vet')
   @Get('colleges')
-  async getColleges(@Query('status') status?: string) {
-    return this.adminService.getColleges(status);
+  async getColleges(
+    @Query('status') status?: string,
+    @Query('search') search?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.adminService.getColleges({ status, search, page, limit });
   }
 
   /**
@@ -81,7 +86,7 @@ export class AdminController {
 
   /**
    * GET /admin/users
-   * List system users with role and status filters
+   * List system users with role, status, search, and pagination filters
    */
   @ApiOperation({ summary: 'List platform users with role and status filters' })
   @ApiResponse({ status: 200, description: 'Users list returned successfully.' })
@@ -90,20 +95,28 @@ export class AdminController {
   async getUsers(
     @Query('role') role?: string,
     @Query('status') status?: string,
+    @Query('search') search?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
   ) {
-    return this.adminService.getUsers(role, status);
+    return this.adminService.getUsers({ role, status, search, page, limit });
   }
 
   /**
    * GET /admin/students
-   * List all registered students with college and enrollment metrics
+   * List registered students with college, search, and pagination filters
    */
   @ApiOperation({ summary: 'List all student profiles with academic and enrollment metrics' })
   @ApiResponse({ status: 200, description: 'Students list returned successfully.' })
   @Permissions('student:read')
   @Get('students')
-  async getStudents() {
-    return this.adminService.getStudents();
+  async getStudents(
+    @Query('collegeId') collegeId?: number,
+    @Query('search') search?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.adminService.getStudents({ collegeId, search, page, limit });
   }
 
   /**
@@ -124,12 +137,17 @@ export class AdminController {
   /**
    * GET /admin/submissions
    */
-  @ApiOperation({ summary: 'List all student submissions' })
+  @ApiOperation({ summary: 'List all student submissions with status, search, and pagination' })
   @ApiResponse({ status: 200, description: 'Submissions list returned successfully.' })
   @Permissions('user:manage')
   @Get('submissions')
-  async getSubmissions() {
-    return this.adminService.getSubmissions();
+  async getSubmissions(
+    @Query('status') status?: string,
+    @Query('search') search?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.adminService.getSubmissions({ status, search, page, limit });
   }
 
   /**

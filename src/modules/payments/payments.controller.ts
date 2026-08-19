@@ -4,6 +4,7 @@ import {
   Post,
   Patch,
   Param,
+  Query,
   ParseIntPipe,
   Body,
   UseGuards,
@@ -70,8 +71,15 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('student', 'admin', 'super_admin', 'support')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'List orders' })
-  async getOrders(@Request() req: any) {
+  @ApiOperation({ summary: 'List orders with optional status, gateway, search, and pagination' })
+  async getOrders(
+    @Request() req: any,
+    @Query('status') status?: string,
+    @Query('gateway') gateway?: string,
+    @Query('search') search?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
     const roleName =
       typeof req.user?.role === 'string'
         ? req.user.role
@@ -79,7 +87,7 @@ export class PaymentsController {
     if (roleName.toLowerCase() === 'student') {
       return this.paymentsService.getStudentOrders(req.user.id);
     }
-    return this.paymentsService.getAllOrders();
+    return this.paymentsService.getAllOrders({ status, gateway, search, page, limit });
   }
 
   /**

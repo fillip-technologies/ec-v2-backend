@@ -27,6 +27,8 @@ model Topic {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  @@index([clusterId])
+  @@index([isActive])
   @@map("topics")
 }
 
@@ -39,6 +41,7 @@ model ProgramTopic {
   topic   Topic   @relation(fields: [topicId], references: [id], onDelete: Cascade)
 
   @@id([programId, topicId])
+  @@index([topicId])
   @@map("program_topics")
 }
 
@@ -70,6 +73,8 @@ model Program {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  @@index([status])
+  @@index([countryId])
   @@map("programs")
 }
 
@@ -96,6 +101,7 @@ model ProgramTechnology {
   technology Technology @relation(fields: [technologyId], references: [id], onDelete: Cascade)
 
   @@id([programId, technologyId])
+  @@index([technologyId])
   @@map("program_technologies")
 }
 
@@ -122,6 +128,8 @@ model ProgramPricing {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([programId, countryId])
+  @@index([countryId])
+  @@index([isActive])
   @@map("program_pricing")
 }
 
@@ -261,17 +269,3 @@ model ProgramFaq {
   @@index([programId])
   @@map("program_faqs")
 }
-
-// model ProgramOutcome {
-//   id         Int    @id @default(autoincrement())
-//   programId  Int    @map("program_id")
-//   text       String @db.Text   // e.g. "Build and deploy a full-stack e-commerce app"
-//   orderIndex Int    @default(0) @map("order_index")
-
-//   program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
-
-//   createdAt DateTime @default(now()) @map("created_at")
-
-//   @@index([programId])
-//   @@map("program_outcomes")
-// }
