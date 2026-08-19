@@ -36,9 +36,21 @@ engineers-clinic-backend/
 │
 ├── prisma/
 │   ├── schema/                        # 📂 MULTI-FILE PRISMA SCHEMA
-│   │   ├── user.prisma                # User, Role, Country, Student, college, collegeMember
-│   │   └── program.prisma             # Cluster, Topic, Technology, Program, ProgramPricing
-│   └── seed.ts                        # Seeding script for Roles, Country, Clusters, Topics & Tech
+│   │   ├── role.prisma                # Roles & Granular RBAC Permissions
+│   │   ├── user.prisma                # Countries, Users, RefreshTokens, Students, Colleges
+│   │   ├── program.prisma             # Clusters, Topics, Technologies, Programs, Rubrics
+│   │   ├── payment.prisma             # Gateway Config, Orders, Payments, Seat Orders, Coupons
+│   │   └── enrollment.prisma          # Enrollments, Workspaces, Submissions, AI Reviews, Certs
+│   └── seed/                          # 📂 MODULAR PRODUCTION-READY SEED SUITE
+│       ├── client.ts                  # Shared Prisma connection helper
+│       ├── countries.seed.ts          # Countries & Payment Gateway configs
+│       ├── roles-permissions.seed.ts  # Roles & RBAC permission matrix
+│       ├── colleges.seed.ts           # University partners
+│       ├── users.seed.ts              # Admins, coordinators, and students
+│       ├── catalog.seed.ts            # Curriculums, programs, and AI rubrics
+│       ├── b2b-seats-coupons.seed.ts  # Bulk seats & coupon batches
+│       ├── enrollments-deliverables.seed.ts # Real lifecycle (orders, AI reviews, certs)
+│       └── index.ts                   # Master seed orchestrator
 │
 └── test/                              # 🪞 MIRRORED E2E TEST SUITES
     ├── app.e2e-spec.ts
@@ -91,10 +103,11 @@ Pushes all multi-file table schemas directly to MariaDB without manual SQL migra
 npx prisma db push
 ```
 
-### 3. Seed Database (Roles, Country, Clusters, Topics & Technologies)
-Populates default roles (`super_admin`, `admin`, `college`, `student`, `support`), default country (`India`), course clusters, topics, and technologies:
+### 3. Seed Database (Enterprise Modular Suite)
+Populates full authentic test & production data across all system domains:
 ```bash
-npx ts-node prisma/seed.ts
+npm run seed
+# or: npx ts-node prisma/seed/index.ts
 ```
 
 ### 4. Launch Prisma Studio (GUI Database Manager)
