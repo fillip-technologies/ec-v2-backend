@@ -17,7 +17,10 @@ export async function seedB2BSeatsAndCoupons(prisma: PrismaClient) {
     return;
   }
 
-  // 1. Seat Orders
+  const colNITK = await prisma.college.findFirst({ where: { name: 'National Institute of Technology Karnataka (NITK) Surathkal' } });
+  const colRVCE = await prisma.college.findFirst({ where: { name: 'RV College of Engineering (RVCE)' } });
+
+  // 1. Seat Orders across past months
   const seatOrdersData = [
     {
       collegeId: colVIT.id,
@@ -29,17 +32,7 @@ export async function seedB2BSeatsAndCoupons(prisma: PrismaClient) {
       status: OrderStatus.PAID,
       invoiceRef: 'PO-VIT-2026-001',
       batchCode: 'VIT-FSW-2026',
-    },
-    {
-      collegeId: colIITM.id,
-      programId: progAI.id,
-      seatsPurchased: 100,
-      seatsRedeemed: 1,
-      amount: 599900.0,
-      currency: 'INR',
-      status: OrderStatus.PAID,
-      invoiceRef: 'PO-IITM-2026-08',
-      batchCode: 'IITM-AIML-2026',
+      createdAt: new Date('2026-02-15T10:00:00Z'),
     },
     {
       collegeId: colBITS.id,
@@ -51,6 +44,43 @@ export async function seedB2BSeatsAndCoupons(prisma: PrismaClient) {
       status: OrderStatus.PAID,
       invoiceRef: 'PO-BITS-2026-03',
       batchCode: 'BITS-CLD-2026',
+      createdAt: new Date('2026-04-10T11:00:00Z'),
+    },
+    {
+      collegeId: colIITM.id,
+      programId: progAI.id,
+      seatsPurchased: 100,
+      seatsRedeemed: 1,
+      amount: 599900.0,
+      currency: 'INR',
+      status: OrderStatus.PAID,
+      invoiceRef: 'PO-IITM-2026-08',
+      batchCode: 'IITM-AIML-2026',
+      createdAt: new Date('2026-06-20T14:30:00Z'),
+    },
+    {
+      collegeId: colNITK?.id || colVIT.id,
+      programId: progFSW.id,
+      seatsPurchased: 40,
+      seatsRedeemed: 1,
+      amount: 199960.0,
+      currency: 'INR',
+      status: OrderStatus.PAID,
+      invoiceRef: 'PO-NITK-2026-07',
+      batchCode: 'NITK-FSW-2026',
+      createdAt: new Date('2026-07-18T09:15:00Z'),
+    },
+    {
+      collegeId: colRVCE?.id || colVIT.id,
+      programId: progAI.id,
+      seatsPurchased: 35,
+      seatsRedeemed: 1,
+      amount: 209965.0,
+      currency: 'INR',
+      status: OrderStatus.PAID,
+      invoiceRef: 'PO-RVCE-2026-08',
+      batchCode: 'RVCE-AIML-2026',
+      createdAt: new Date('2026-08-08T12:00:00Z'),
     },
     {
       collegeId: colDTU.id,
@@ -62,6 +92,7 @@ export async function seedB2BSeatsAndCoupons(prisma: PrismaClient) {
       status: OrderStatus.PENDING,
       invoiceRef: 'PO-DTU-2026-PENDING',
       batchCode: 'DTU-FSW-2026',
+      createdAt: new Date('2026-08-14T16:00:00Z'),
     },
   ];
 
@@ -81,6 +112,7 @@ export async function seedB2BSeatsAndCoupons(prisma: PrismaClient) {
           amount: sod.amount,
           currency: sod.currency,
           status: sod.status,
+          createdAt: sod.createdAt,
         },
       });
     } else {
@@ -94,6 +126,7 @@ export async function seedB2BSeatsAndCoupons(prisma: PrismaClient) {
           currency: sod.currency,
           status: sod.status,
           invoiceRef: sod.invoiceRef,
+          createdAt: sod.createdAt,
         },
       });
     }

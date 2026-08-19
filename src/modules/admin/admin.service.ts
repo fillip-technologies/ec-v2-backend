@@ -20,6 +20,9 @@ export class AdminService {
       totalSubmissions,
       pendingColleges,
       recentUsers,
+      paidOrders,
+      paidSeatOrders,
+      awaitingSubmissions,
     ] = await Promise.all([
       this.prisma.user.count(),
       this.prisma.student.count(),
@@ -42,7 +45,112 @@ export class AdminService {
           country: true,
         },
       }),
+      this.prisma.order.findMany({
+        where: { status: 'PAID' },
+        select: { amount: true, createdAt: true, currency: true },
+      }),
+      this.prisma.seatOrder.findMany({
+        where: { status: 'PAID' },
+        select: { amount: true, createdAt: true, currency: true },
+      }),
+      this.prisma.submission.findMany({
+        take: 10,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          student: {
+            include: {
+              user: true,
+            },
+          },
+          workspaceTask: {
+            include: {
+              studentWorkspace: {
+                include: {
+                  enrollmentProject: {
+                    include: {
+                      project: true,
+                      enrollment: {
+                        include: {
+                          program: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      }),
     ]);
+
+    // Calculate total captured revenue
+    let totalRevenue = 0;
+    paidOrders.forEach((o) => { totalRevenue += Number(o.amount) || 0; });
+    paidSeatOrders.forEach((so) => { totalRevenue += Number(so.amount) || 0; });
+
+    // Generate monthly revenue trend (last 12 months)
+    const now = new Date();
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthlyTrend: { label: string; year: number; month: number; amount: number }[] = [];
+
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      monthlyTrend.push({
+        label: monthNames[d.getMonth()],
+        year: d.getFullYear(),
+        month: d.getMonth(),
+        amount: 0,
+      });
+    }
+
+    const allTransactions = [
+      ...paidOrders.map((o) => ({ amount: Number(o.amount) || 0, createdAt: new Date(o.createdAt) })),
+      ...paidSeatOrders.map((so) => ({ amount: Number(so.amount) || 0, createdAt: new Date(so.createdAt) })),
+    ];
+
+    allTransactions.forEach((tx) => {
+      const txYear = tx.createdAt.getFullYear();
+      const txMonth = tx.createdAt.getMonth();
+      const bucket = monthlyTrend.find((m) => m.year === txYear && m.month === txMonth);
+      if (bucket) {
+        bucket.amount += tx.amount;
+      }
+    });
+
+    // Generate yearly revenue trend (past 3 years)
+    const currentYear = now.getFullYear();
+    const yearlyTrend = [
+      { label: String(currentYear - 2), amount: 0 },
+      { label: String(currentYear - 1), amount: 0 },
+      { label: String(currentYear), amount: 0 },
+    ];
+    allTransactions.forEach((tx) => {
+      const txYear = tx.createdAt.getFullYear();
+      const bucket = yearlyTrend.find((y) => y.label === String(txYear));
+      if (bucket) {
+        bucket.amount += tx.amount;
+      }
+    });
+
+    const mappedSubmissions = awaitingSubmissions.map((s) => {
+      const studentName = (s.student.firstName || s.student.lastName)
+        ? `${s.student.firstName || ''} ${s.student.lastName || ''}`.trim()
+        : s.student.user?.email?.split('@')[0] || `Student #${s.studentId}`;
+      
+      const programTitle = s.workspaceTask?.studentWorkspace?.enrollmentProject?.enrollment?.program?.title || 'Engineering Internship Track';
+      const taskTitle = s.workspaceTask?.title || 'Capstone Deliverable';
+
+      return {
+        id: s.id,
+        studentId: s.studentId,
+        studentName,
+        programTitle,
+        taskTitle,
+        status: s.status,
+        createdAt: s.createdAt,
+      };
+    });
 
     return {
       metrics: {
@@ -53,6 +161,11 @@ export class AdminService {
         totalPrograms,
         totalEnrollments,
         totalSubmissions,
+        totalRevenue,
+      },
+      revenueTrend: {
+        monthly: monthlyTrend,
+        yearly: yearlyTrend,
       },
       pendingColleges: pendingColleges.map((c) => ({
         id: c.id,
@@ -62,6 +175,7 @@ export class AdminService {
         status: c.status,
         createdAt: c.createdAt,
       })),
+      awaitingSubmissions: mappedSubmissions,
       recentUsers: recentUsers.map((u) => ({
         id: u.id,
         email: u.email,
