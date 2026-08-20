@@ -164,6 +164,36 @@ export class StudentService {
         feedback: r.feedback,
       };
     }
+    // Find the first actionable active task
+    let currentActiveTask: any = null;
+    let totalTasksPassed = 0;
+    let totalTasksCount = 0;
+
+    for (const ep of selectedProjects) {
+      const pTasks = ep.workspace?.tasks || [];
+      for (const t of pTasks) {
+        totalTasksCount++;
+        if (t.progress?.status === 'PASSED') {
+          totalTasksPassed++;
+        } else if (!currentActiveTask && (t.progress?.status === 'OPEN' || t.progress?.status === 'NEEDS_WORK' || ep.status === 'ACTIVE')) {
+          currentActiveTask = {
+            taskId: t.id,
+            taskTitle: t.title,
+            projectTitle: ep.project.title,
+            projectId: ep.project.id,
+            orderIndex: t.orderIndex,
+            repoUrl: ep.workspace?.repoUrl || null,
+            workspaceId: ep.workspace?.id || null,
+            status: t.progress?.status || 'OPEN',
+          };
+        }
+      }
+    }
+
+    // Check certificate status
+    const certificate = await this.prisma.certificate.findFirst({
+      where: { enrollmentId: enrollment.id },
+    });
 
     return {
       firstName: student.firstName,
@@ -180,7 +210,12 @@ export class StudentService {
         grade: averageScore > 0 ? this.calculateGrade(averageScore) : 'N/A',
         totalSubmissions,
         gradedSubmissions: gradedSubmissionsCount,
+        totalTasks: totalTasksCount,
+        passedTasks: totalTasksPassed,
+        certificateStatus: certificate ? 'ISSUED' : completionPercentage >= 100 ? 'ELIGIBLE' : 'IN_PROGRESS',
+        certificateUrl: certificate?.certificateUrl || null,
       },
+      currentActiveTask,
       recentAiReview,
       projects: projectTracks,
     };
