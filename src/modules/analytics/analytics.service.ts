@@ -343,30 +343,37 @@ export class AnalyticsService {
    * Bounded and sorted global student & visitor distribution
    */
   async getGeographicReach() {
-    const [totalRegisteredStudents, countries] = await Promise.all([
-      this.prisma.student.count(),
-      this.prisma.country.findMany({
-        include: {
-          _count: { select: { users: true } },
+    const countries = await this.prisma.country.findMany({
+      include: {
+        _count: { select: { users: true } },
+      },
+      orderBy: {
+        users: {
+          _count: 'desc',
         },
-        orderBy: {
-          users: {
-            _count: 'desc',
-          },
-        },
-      }),
-    ]);
+      },
+    });
 
-    return countries.map((c) => ({
-      countryName: c.name,
-      isoCode: c.isoCode,
-      currencyCode: c.currencyCode,
-      studentCount: c._count.users,
-      sharePct:
-        totalRegisteredStudents > 0
-          ? Math.round((c._count.users / totalRegisteredStudents) * 100)
-          : 0,
-    }));
+    const totalUsersWithCountry = countries.reduce(
+      (sum, c) => sum + (c._count?.users || 0),
+      0,
+    );
+
+    return countries.map((c) => {
+      const userCount = c._count?.users || 0;
+      const sharePct =
+        totalUsersWithCountry > 0
+          ? Math.min(100, Math.round((userCount / totalUsersWithCountry) * 100))
+          : 0;
+
+      return {
+        countryName: c.name,
+        isoCode: c.isoCode,
+        currencyCode: c.currencyCode,
+        studentCount: userCount,
+        sharePct,
+      };
+    });
   }
 
   /**

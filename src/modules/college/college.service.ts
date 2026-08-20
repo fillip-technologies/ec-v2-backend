@@ -23,13 +23,19 @@ export class CollegeService {
 
   /**
    * GET /college/overview
-   * Returns scoped telemetry metrics for the logged-in college institution (e.g. VIT)
+   * Returns scoped telemetry metrics for the logged-in college institution
    */
   async getOverview(userId: number) {
     const college = await this.getCollegeForUser(userId);
     const collegeId = college.id;
 
-    const [totalStudents, activeEnrollments, completedEnrollments, studentsList] = await Promise.all([
+    const [
+      totalStudents,
+      activeEnrollments,
+      completedEnrollments,
+      totalSeatsAgg,
+      studentsList,
+    ] = await Promise.all([
       this.prisma.student.count({ where: { collegeId } }),
       this.prisma.enrollment.count({
         where: {
@@ -42,6 +48,10 @@ export class CollegeService {
           student: { collegeId },
           status: 'COMPLETED',
         },
+      }),
+      this.prisma.seatOrder.aggregate({
+        _sum: { seatsPurchased: true },
+        where: { collegeId, status: 'PAID' },
       }),
       this.prisma.student.findMany({
         where: { collegeId },
@@ -64,9 +74,12 @@ export class CollegeService {
             },
           },
         },
+        orderBy: { createdAt: 'desc' },
         take: 10,
       }),
     ]);
+
+    const totalSeatsAllocated = Number(totalSeatsAgg._sum.seatsPurchased) || 0;
 
     return {
       college: {
@@ -79,7 +92,7 @@ export class CollegeService {
         totalStudents,
         activeEnrollments,
         completedEnrollments,
-        totalSeatsAllocated: totalStudents + 50, // Available seat capacity
+        totalSeatsAllocated,
       },
       recentCohortStudents: studentsList.map((s: any) => {
         const latestEnrollment = s.enrollments[0];
@@ -88,7 +101,7 @@ export class CollegeService {
           let totalTasks = 0;
           let passedTasks = 0;
           latestEnrollment.selectedProjects.forEach((ep: any) => {
-            ep.workspace?.tasks.forEach((tk: any) => {
+            ep.workspace?.tasks?.forEach((tk: any) => {
               totalTasks++;
               if (tk.progress?.status === 'PASSED') passedTasks++;
             });
@@ -100,8 +113,8 @@ export class CollegeService {
 
         return {
           id: s.userid,
-          displayName: `${s.firstName} ${s.lastName}`.trim(),
-          email: s.user.email,
+          displayName: `${s.firstName || ''} ${s.lastName || ''}`.trim() || s.user?.email || 'Student',
+          email: s.user?.email || '',
           programTitle: latestEnrollment?.program?.title || 'Not Enrolled',
           enrollmentStatus: latestEnrollment?.status || 'PENDING',
           completionPercentage,
@@ -149,7 +162,7 @@ export class CollegeService {
         let totalTasks = 0;
         let passedTasks = 0;
         latestEnrollment.selectedProjects.forEach((ep: any) => {
-          ep.workspace?.tasks.forEach((tk: any) => {
+          ep.workspace?.tasks?.forEach((tk: any) => {
             totalTasks++;
             if (tk.progress?.status === 'PASSED') passedTasks++;
           });
@@ -163,9 +176,9 @@ export class CollegeService {
         id: s.userid,
         firstName: s.firstName,
         lastName: s.lastName,
-        displayName: `${s.firstName} ${s.lastName}`.trim(),
-        email: s.user.email,
-        phoneNo: s.user.phoneNo,
+        displayName: `${s.firstName || ''} ${s.lastName || ''}`.trim() || s.user?.email || 'Student',
+        email: s.user?.email || '',
+        phoneNo: s.user?.phoneNo,
         programTitle: latestEnrollment?.program?.title || 'Not Enrolled',
         enrollmentStatus: latestEnrollment?.status || 'N/A',
         completionPercentage,
@@ -180,40 +193,113 @@ export class CollegeService {
    */
   async getCoupons(userId: number) {
     const college = await this.getCollegeForUser(userId);
+    const collegeId = college.id;
 
-    return [
-      {
-        id: 1,
-        code: `VIT-MERN-2026`,
-        programTitle: 'Full Stack Web Engineering (MERN & Next.js)',
-        totalSeats: 50,
-        redeemedSeats: 12,
-        discountType: 'ZERO_COST',
-        status: 'ACTIVE',
-        validUntil: '2026-12-31',
+    const batches = await this.prisma.couponBatch.findMany({
+      where: { collegeId },
+      include: {
+        program: true,
+        coupons: true,
+        seatOrder: true,
       },
-    ];
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return batches.map((b) => {
+      const redeemedSeats = b.coupons.filter((cp) => cp.status === 'REDEEMED').length;
+      const activeSeats = b.coupons.filter((cp) => cp.status === 'ACTIVE').length;
+
+      return {
+        id: b.id,
+        code: b.batchCode,
+        programTitle: b.program?.title || 'Internship Program',
+        totalSeats: b.totalCoupons,
+        redeemedSeats,
+        discountType: 'ZERO_COST',
+        status: activeSeats > 0 ? 'ACTIVE' : 'EXHAUSTED',
+        validUntil: b.coupons[0]?.expiresAt
+          ? new Date(b.coupons[0].expiresAt).toISOString().slice(0, 10)
+          : '2026-12-31',
+      };
+    });
   }
 
   /**
    * GET /college/reports
-   * Cohort progress and completion reports for this college
+   * Cohort progress and completion reports computed from database
    */
   async getReports(userId: number) {
     const college = await this.getCollegeForUser(userId);
     const collegeId = college.id;
 
-    const totalStudents = await this.prisma.student.count({ where: { collegeId } });
-    const completedCount = await this.prisma.enrollment.count({
-      where: { student: { collegeId }, status: 'COMPLETED' },
+    const [totalStudents, completedCount, certificatesCount, programsWithCollegeStudents] =
+      await Promise.all([
+        this.prisma.student.count({ where: { collegeId } }),
+        this.prisma.enrollment.count({
+          where: { student: { collegeId }, status: 'COMPLETED' },
+        }),
+        this.prisma.certificate.count({
+          where: { student: { collegeId } },
+        }),
+        this.prisma.program.findMany({
+          where: {
+            enrollments: {
+              some: { student: { collegeId } },
+            },
+          },
+          include: {
+            enrollments: {
+              where: { student: { collegeId } },
+              include: {
+                student: {
+                  include: {
+                    submissions: {
+                      include: { aiReview: true },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        }),
+      ]);
+
+    const cohortSummary = programsWithCollegeStudents.map((prog) => {
+      const enrolledCount = prog.enrollments.length;
+      const completedProgCount = prog.enrollments.filter((e) => e.status === 'COMPLETED').length;
+
+      let totalScore = 0;
+      let reviewCount = 0;
+
+      prog.enrollments.forEach((e) => {
+        e.student?.submissions?.forEach((sub) => {
+          if (sub.aiReview?.score !== undefined && sub.aiReview?.score !== null) {
+            totalScore += Number(sub.aiReview.score);
+            reviewCount++;
+          }
+        });
+      });
+
+      const avgScore = reviewCount > 0 ? `${Math.round(totalScore / reviewCount)}%` : 'N/A';
+
+      return {
+        id: prog.id,
+        programTitle: prog.title,
+        enrolledCount,
+        completedCount: completedProgCount,
+        avgScore,
+        status: 'ACTIVE',
+      };
     });
 
     return {
       institutionName: college.name,
       totalEnrolledCohort: totalStudents,
       completedInternships: completedCount,
-      completionRatePercentage: totalStudents > 0 ? Math.round((completedCount / totalStudents) * 100) : 0,
-      certificatesIssued: completedCount,
+      completionRatePercentage:
+        totalStudents > 0 ? Math.round((completedCount / totalStudents) * 100) : 0,
+      certificatesIssued: certificatesCount,
+      cohortSummary,
     };
   }
 }
