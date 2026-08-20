@@ -363,33 +363,35 @@ export async function seedEnrollmentsAndDeliverables(prisma: PrismaClient) {
     },
   });
 
-  // 7. Workspaces for Priya Patel (In progress on Project 1)
-  if (fswProjects.length > 0) {
-    const proj1 = fswProjects[0];
-    const priyaEnrolledProj1 = await prisma.enrollmentProject.upsert({
-      where: { enrollmentId_projectId: { enrollmentId: enrollment2.id, projectId: proj1.id } },
-      update: { orderIndex: 1, status: EnrolledProjectStatus.ACTIVE },
-      create: { enrollmentId: enrollment2.id, projectId: proj1.id, orderIndex: 1, status: EnrolledProjectStatus.ACTIVE },
+  // 7. Workspaces for Priya Patel (All 3 projects seeded: Project 1 ACTIVE, Project 2 & 3 LOCKED)
+  for (let i = 0; i < fswProjects.length; i++) {
+    const proj = fswProjects[i];
+    const projStatus = i === 0 ? EnrolledProjectStatus.ACTIVE : EnrolledProjectStatus.LOCKED;
+
+    const priyaEnrolledProj = await prisma.enrollmentProject.upsert({
+      where: { enrollmentId_projectId: { enrollmentId: enrollment2.id, projectId: proj.id } },
+      update: { orderIndex: i + 1, status: projStatus },
+      create: { enrollmentId: enrollment2.id, projectId: proj.id, orderIndex: i + 1, status: projStatus },
     });
 
-    const fswTemplate1 = await prisma.workspaceTemplate.findUnique({ where: { projectId: proj1.id } });
-    if (fswTemplate1) {
+    const fswTemplate = await prisma.workspaceTemplate.findUnique({ where: { projectId: proj.id } });
+    if (fswTemplate) {
       const priyaWorkspace = await prisma.studentWorkspace.upsert({
-        where: { enrollmentProjectId: priyaEnrolledProj1.id },
+        where: { enrollmentProjectId: priyaEnrolledProj.id },
         update: {
-          workspaceTemplateId: fswTemplate1.id,
+          workspaceTemplateId: fswTemplate.id,
           templateVersion: 1,
-          repoUrl: 'https://github.com/priya-patel-vit/fsw-ecommerce-backend',
+          repoUrl: i === 0 ? 'https://github.com/priya-patel-vit/fsw-ecommerce-backend' : null,
         },
         create: {
-          enrollmentProjectId: priyaEnrolledProj1.id,
-          workspaceTemplateId: fswTemplate1.id,
+          enrollmentProjectId: priyaEnrolledProj.id,
+          workspaceTemplateId: fswTemplate.id,
           templateVersion: 1,
-          repoUrl: 'https://github.com/priya-patel-vit/fsw-ecommerce-backend',
+          repoUrl: i === 0 ? 'https://github.com/priya-patel-vit/fsw-ecommerce-backend' : null,
         },
       });
 
-      const tasks = await prisma.templateTask.findMany({ where: { workspaceTemplateId: fswTemplate1.id } });
+      const tasks = await prisma.templateTask.findMany({ where: { workspaceTemplateId: fswTemplate.id } });
       for (const tt of tasks) {
         let wTask = await prisma.workspaceTask.findFirst({
           where: { studentWorkspaceId: priyaWorkspace.id, templateTaskId: tt.id },
@@ -407,15 +409,24 @@ export async function seedEnrollmentsAndDeliverables(prisma: PrismaClient) {
           });
         }
 
-        // Step 1 passed, Step 2 open
-        const stepStatus = tt.orderIndex === 1 ? StepStatus.PASSED : StepStatus.OPEN;
+        // For Project 1: Step 1 passed, Step 2 open, Step 3 locked
+        // For Project 2 & 3: all tasks locked
+        const stepStatus =
+          i === 0
+            ? tt.orderIndex === 1
+              ? StepStatus.PASSED
+              : tt.orderIndex === 2
+              ? StepStatus.OPEN
+              : StepStatus.LOCKED
+            : StepStatus.LOCKED;
+
         await prisma.taskProgress.upsert({
           where: { workspaceTaskId: wTask.id },
-          update: { status: stepStatus, resubmissionCount: 1 },
-          create: { workspaceTaskId: wTask.id, status: stepStatus, resubmissionCount: 1 },
+          update: { status: stepStatus, resubmissionCount: i === 0 && tt.orderIndex === 1 ? 1 : 0 },
+          create: { workspaceTaskId: wTask.id, status: stepStatus, resubmissionCount: i === 0 && tt.orderIndex === 1 ? 1 : 0 },
         });
 
-        if (tt.orderIndex === 1) {
+        if (i === 0 && tt.orderIndex === 1) {
           let sub = await prisma.submission.findFirst({
             where: { workspaceTaskId: wTask.id, studentId: student2.id },
           });

@@ -10,6 +10,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { RegisterStudentDto } from './dto/register-student.dto';
 import { RegisterCollegeDto } from './dto/register-college.dto';
 import { LoginDto } from './dto/login.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { AppConfig } from '../../core/config/app.config';
 
 @Injectable()
@@ -348,7 +350,13 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
-        role: true,
+        role: {
+          include: {
+            permissions: {
+              include: { permission: true },
+            },
+          },
+        },
         country: true,
         student: {
           include: {
@@ -357,7 +365,11 @@ export class AuthService {
         },
         collegeMembers: {
           include: {
-            college: true,
+            college: {
+              include: {
+                country: true,
+              },
+            },
           },
         },
       },
@@ -369,6 +381,97 @@ export class AuthService {
 
     const { password, ...userWithoutPassword } = user;
     return userWithoutPassword;
+  }
+
+  /**
+   * Update logged-in user profile
+   */
+  async updateProfile(userId: number, dto: UpdateProfileDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        student: true,
+        collegeMembers: { include: { college: true } },
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User profile not found');
+    }
+
+    // 1. Update basic User fields
+    const userUpdateData: any = {};
+    if (dto.phoneNo !== undefined) userUpdateData.phoneNo = dto.phoneNo;
+    if (dto.countryId !== undefined) userUpdateData.countryId = Number(dto.countryId);
+
+    if (Object.keys(userUpdateData).length > 0) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: userUpdateData,
+      });
+    }
+
+    // 2. If student profile exists, update student table
+    if (user.student) {
+      const studentUpdateData: any = {};
+      if (dto.firstName !== undefined) studentUpdateData.firstName = dto.firstName;
+      if (dto.lastName !== undefined) studentUpdateData.lastName = dto.lastName;
+      if (dto.collegeId !== undefined) studentUpdateData.collegeId = dto.collegeId ? Number(dto.collegeId) : null;
+      if (dto.customCollegeName !== undefined) studentUpdateData.customCollegeName = dto.customCollegeName;
+      if (dto.usn !== undefined) studentUpdateData.usn = dto.usn;
+      if (dto.branch !== undefined) studentUpdateData.branch = dto.branch;
+      if (dto.graduationYear !== undefined) studentUpdateData.graduationYear = dto.graduationYear ? Number(dto.graduationYear) : null;
+
+      if (Object.keys(studentUpdateData).length > 0) {
+        await this.prisma.student.update({
+          where: { userid: userId },
+          data: studentUpdateData,
+        });
+      }
+    }
+
+    // 3. If college member profile exists, update college table
+    if (user.collegeMembers && user.collegeMembers.length > 0) {
+      const collegeId = user.collegeMembers[0].collegeId;
+      const collegeUpdateData: any = {};
+      if (dto.collegeName !== undefined) collegeUpdateData.name = dto.collegeName;
+      if (dto.collegeAddress !== undefined) collegeUpdateData.address = dto.collegeAddress;
+
+      if (Object.keys(collegeUpdateData).length > 0) {
+        await this.prisma.college.update({
+          where: { id: collegeId },
+          data: collegeUpdateData,
+        });
+      }
+    }
+
+    return this.getProfile(userId);
+  }
+
+  /**
+   * Change user password with current password verification
+   */
+  async changePassword(userId: number, dto: ChangePasswordDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const isPasswordValid = await bcrypt.compare(dto.currentPassword, user.password);
+    if (!isPasswordValid) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+
+    return { message: 'Password updated successfully' };
   }
 
   /**

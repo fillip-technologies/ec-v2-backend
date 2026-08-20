@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Body,
   UseGuards,
   Request,
@@ -21,6 +22,8 @@ import { AuthService } from './auth.service';
 import { RegisterStudentDto } from './dto/register-student.dto';
 import { RegisterCollegeDto } from './dto/register-college.dto';
 import { LoginDto } from './dto/login.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth/jwt-auth.guard';
 
 const REFRESH_COOKIE_OPTIONS: any = {
@@ -189,5 +192,33 @@ export class AuthController {
       throw new UnauthorizedException('Unauthorized');
     }
     return this.authService.getProfile(req.user.id);
+  }
+
+  /**
+   * PATCH /auth/profile
+   */
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Update current user profile' })
+  @Patch('profile')
+  async updateProfile(@Request() req: any, @Body() dto: UpdateProfileDto) {
+    if (!req || !req.user || !req.user.id) {
+      throw new UnauthorizedException('Unauthorized');
+    }
+    return this.authService.updateProfile(req.user.id, dto);
+  }
+
+  /**
+   * POST /auth/change-password
+   */
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Change current account password' })
+  @Post('change-password')
+  async changePassword(@Request() req: any, @Body() dto: ChangePasswordDto) {
+    if (!req || !req.user || !req.user.id) {
+      throw new UnauthorizedException('Unauthorized');
+    }
+    return this.authService.changePassword(req.user.id, dto);
   }
 }
