@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+// import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { AppConfig } from './core/config/app.config';
 
@@ -33,7 +33,8 @@ async function bootstrap() {
     }),
   );
 
-  // Configure Swagger OpenAPI Documentation
+  // Swagger OpenAPI Documentation (Disabled)
+  /*
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Engineers Clinic API')
     .setDescription(
@@ -45,11 +46,11 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api/docs', app, document);
+  */
 
   const baseUrl = appConfig?.baseUrl || 'http://localhost';
   const port = appConfig?.port || 4000;
   await app.listen(port);
   console.log(`🚀 Engineers Clinic Backend running on ${baseUrl}:${port}`);
-  console.log(`📚 Swagger API Documentation available on ${baseUrl}:${port}/api/docs`);
 }
 bootstrap();
