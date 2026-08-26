@@ -6,18 +6,18 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 model Country {
-  id            Int       @id @default(autoincrement())
-  isoCode       String    @unique @map("iso_code")
-  name          String    
-  defaultLocal  String    @map("default_local")
-  timezone      String 
-  currencyCode  String    @map("currency_code")
-  isActive      Boolean   @default(true) @map("is_active")
+  id           Int     @id @default(autoincrement())
+  isoCode      String  @unique @map("iso_code")
+  name         String
+  defaultLocal String  @map("default_local")
+  timezone     String
+  currencyCode String  @map("currency_code")
+  isActive     Boolean @default(true) @map("is_active")
 
   users             User[]
   countriescolleges College[]
@@ -25,32 +25,32 @@ model Country {
   pricings          ProgramPricing[]
 
   gatewayCountries GatewayCountry[]
-  
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("countries")
 }
 
 model User {
-  id        Int       @id @default(autoincrement())
-  email    String    @unique
-  password String
-  phoneNo  String   @map("phone_no")
-  roleId   Int      @map("role_id")
-  countryId Int       @map("country_id")
-  status   String    @default("pending")
+  id        Int    @id @default(autoincrement())
+  email     String @unique
+  password  String
+  phoneNo   String @map("phone_no")
+  roleId    Int    @map("role_id")
+  countryId Int    @map("country_id")
+  status    String @default("pending")
 
   // Relations
-  role      Role      @relation(fields: [roleId], references: [id])
-  country   Country   @relation(fields: [countryId], references: [id])
+  role    Role    @relation(fields: [roleId], references: [id])
+  country Country @relation(fields: [countryId], references: [id])
 
-  student  Student?
+  student        Student?
   collegeMembers CollegeMember[]
-  refreshTokens RefreshToken[]
+  refreshTokens  RefreshToken[]
 
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([status])
   @@index([roleId])
@@ -73,51 +73,50 @@ model RefreshToken {
 }
 
 model Student {
-  userid            Int       @map("user_id") @id
-  firstName         String    @map("first_name")
-  lastName          String    @map("last_name")
+  userid    Int    @id @map("user_id")
+  firstName String @map("first_name")
+  lastName  String @map("last_name")
 
   // Optional College relation (nullable)
-  collegeId         Int?      @map("college_id")
-  college           College?  @relation(fields: [collegeId], references: [id], onDelete: SetNull)
+  collegeId Int?     @map("college_id")
+  college   College? @relation(fields: [collegeId], references: [id], onDelete: SetNull)
 
   // Custom / Unlisted College Name (When "Other" is selected)
-  customCollegeName String?   @map("custom_college_name")
-  usn               String?   @map("usn")
-  branch            String?   @map("branch")
-  graduationYear    Int?      @map("graduation_year")
+  customCollegeName String? @map("custom_college_name")
+  usn               String? @map("usn")
+  branch            String? @map("branch")
+  graduationYear    Int?    @map("graduation_year")
 
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  enrollments       Enrollment[]
-  submissions       Submission[]
-  certificates      Certificate[]
-  orders            Order[]
+  enrollments  Enrollment[]
+  submissions  Submission[]
+  certificates Certificate[]
+  orders       Order[]
 
-  user              User      @relation(fields: [userid], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userid], references: [id], onDelete: Cascade)
 
   @@index([collegeId])
   @@map("students")
 }
 
-
 model College {
-  id             Int       @id @default(autoincrement())
-  name           String    @unique
-  address        String
-  countryId      Int       @map("country_id")
-  status         String    @default("pending")
+  id        Int    @id @default(autoincrement())
+  name      String @unique
+  address   String
+  countryId Int    @map("country_id")
+  status    String @default("pending")
 
-  country        Country   @relation(fields: [countryId], references: [id])
-  members        CollegeMember[]
-  students       Student[]
+  country  Country         @relation(fields: [countryId], references: [id])
+  members  CollegeMember[]
+  students Student[]
 
   seatOrders    SeatOrder[]
   couponBatches CouponBatch[]
 
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([status])
   @@index([countryId])
@@ -125,14 +124,14 @@ model College {
 }
 
 model CollegeMember {
-  userId        Int       @id @map("user_id")
-  collegeId     Int       @map("college_id")
+  userId    Int @id @map("user_id")
+  collegeId Int @map("college_id")
 
-  user          User      @relation(fields: [userId], references: [id])
-  college       College   @relation(fields: [collegeId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+  college College @relation(fields: [collegeId], references: [id])
 
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([collegeId])
   @@map("college_members")
