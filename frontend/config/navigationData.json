@@ -1,0 +1,39 @@
+{
+  "durations": [
+    {
+      "hours": 60,
+      "label": "60+ Hours Tier"
+    },
+    {
+      "hours": 120,
+      "label": "120+ Hours Tier"
+    },
+    {
+      "hours": 180,
+      "label": "180+ Hours Tier"
+    }
+  ],
+  "fallbackClusters": [
+    { "id": 1, "name": "Software Engineering & Full Stack" },
+    { "id": 2, "name": "Artificial Intelligence & Data Science" },
+    { "id": 3, "name": "Cloud Computing & DevOps" },
+    { "id": 4, "name": "Cybersecurity & Ethical Hacking" },
+    { "id": 5, "name": "Embedded Systems & IoT" }
+  ],
+  "fallbackTopics": [
+    { "id": 1, "name": "Full Stack Web Development" },
+    { "id": 2, "name": "Mobile Application Engineering" },
+    { "id": 3, "name": "Machine Learning & Neural Networks" },
+    { "id": 4, "name": "Data Analytics & Big Data" },
+    { "id": 5, "name": "Cloud Native Architecture" },
+    { "id": 6, "name": "DevOps & CI/CD Pipelines" },
+    { "id": 7, "name": "Network & System Security" },
+    { "id": 8, "name": "Smart IoT & Sensor Systems" }
+  ],
+  "fallbackCountries": [
+    { "isoCode": "IN", "name": "India", "currencyCode": "INR" },
+    { "isoCode": "US", "name": "United States", "currencyCode": "USD" },
+    { "isoCode": "GB", "name": "United Kingdom", "currencyCode": "GBP" },
+    { "isoCode": "AE", "name": "UAE", "currencyCode": "AED" }
+  ]
+}

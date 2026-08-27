@@ -1,0 +1,82 @@
+{
+  "defaultProgramSlug": "fullstack-web-engineering-mern-nextjs",
+  "metrics": {
+    "hoursLogged": 80,
+    "totalHours": 120,
+    "completionPercentage": 66,
+    "projectsDone": 2,
+    "totalProjects": 3,
+    "currentScore": 88,
+    "maxScore": 100,
+    "grade": "A+",
+    "totalSubmissions": 5,
+    "gradedSubmissions": 4
+  },
+  "recentAiReview": {
+    "stepTitle": "Step 2 Submission",
+    "status": "PASSED",
+    "score": 88,
+    "maxScore": 100,
+    "breakdown": [
+      { "criterion": "Architecture Cleanliness", "score": 45, "maxScore": 50 },
+      { "criterion": "Code Quality & Unit Tests", "score": 43, "maxScore": 50 }
+    ],
+    "feedback": "Clean API controller isolation and zero lint errors across all microservice routes."
+  },
+  "submissions": [
+    {
+      "id": 1,
+      "taskTitle": "Task 1: System Blueprint Schema",
+      "stepTitle": "Step 1: System Blueprint",
+      "submittedAt": "2026-08-10T14:30:00Z",
+      "evaluator": "AI Reviewer Engine (BullMQ Worker)",
+      "status": "PASSED",
+      "score": 92
+    },
+    {
+      "id": 2,
+      "taskTitle": "Task 2: Core Microservice Logic Implementation",
+      "stepTitle": "Step 2: Microservice Core",
+      "submittedAt": "2026-08-11T16:45:00Z",
+      "evaluator": "AI Reviewer Engine (BullMQ Worker)",
+      "status": "PASSED",
+      "score": 88
+    },
+    {
+      "id": 3,
+      "taskTitle": "Task 3: Automated Jest Integration Testing",
+      "stepTitle": "Step 2: Microservice Core",
+      "submittedAt": "2026-08-12T10:15:00Z",
+      "evaluator": "AI Reviewer Engine (BullMQ Worker)",
+      "status": "EVALUATING",
+      "score": null
+    }
+  ],
+  "rubrics": [
+    {
+      "stepId": 1,
+      "stepTitle": "Step 1: System Blueprint & DB Schema",
+      "passThreshold": 60,
+      "criteria": [
+        { "criterion": "Entity Relation Integrity", "maxScore": 50 },
+        { "criterion": "Prisma Typeorm Schema Setup", "maxScore": 50 }
+      ]
+    },
+    {
+      "stepId": 2,
+      "stepTitle": "Step 2: Core Microservice Controller Implementation",
+      "passThreshold": 60,
+      "criteria": [
+        { "criterion": "Architecture Cleanliness", "maxScore": 50 },
+        { "criterion": "Code Quality & Unit Tests", "maxScore": 50 }
+      ]
+    }
+  ],
+  "profile": {
+    "institutionName": "Vellore Institute of Technology (VIT)",
+    "verificationStatus": "Active Student Enrolment",
+    "batch": "2026 Cohort",
+    "referralCode": "RAHUL2026",
+    "walletBalance": "INR 1,500"
+  }
+}

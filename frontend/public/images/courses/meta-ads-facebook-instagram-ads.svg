@@ -1,0 +1,19 @@
+<svg width="600" height="420" viewBox="0 0 600 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="600" height="420" rx="32" fill="#4C1D95"/>
+<rect x="24" y="24" width="552" height="372" rx="24" fill="url(#a)"/>
+<circle cx="490" cy="104" r="72" fill="#FDBA74" fill-opacity=".22"/>
+<circle cx="116" cy="318" r="90" fill="#A78BFA" fill-opacity=".18"/>
+<rect x="86" y="104" width="204" height="214" rx="34" fill="#111827" fill-opacity=".78" stroke="#F9A8D4" stroke-width="5"/>
+<circle cx="188" cy="212" r="54" fill="#F59E0B"/>
+<circle cx="188" cy="212" r="30" fill="#EC4899"/>
+<path d="M340 136H510" stroke="#FAF5FF" stroke-width="24" stroke-linecap="round"/>
+<path d="M340 194H476" stroke="#E9D5FF" stroke-width="22" stroke-linecap="round"/>
+<path d="M340 252H502" stroke="#E9D5FF" stroke-width="22" stroke-linecap="round" stroke-opacity=".72"/>
+<text x="84" y="360" fill="#FAF5FF" font-family="Arial, sans-serif" font-size="42" font-weight="700">META ADS</text>
+<defs>
+<linearGradient id="a" x1="58" y1="40" x2="548" y2="376" gradientUnits="userSpaceOnUse">
+<stop stop-color="#DB2777"/>
+<stop offset="1" stop-color="#7C3AED"/>
+</linearGradient>
+</defs>
+</svg>

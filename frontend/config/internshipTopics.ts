@@ -1,0 +1,208 @@
+import { LevelData } from "../types/landing";
+
+export const INTERNSHIP_DATA: Record<string, LevelData> = {
+  "Beginner": {
+    duration: "45 Days",
+    projects: "3 Portfolio Projects Required",
+    focus: "Foundational skills, syntax, basic tools, and core industry workflows.",
+    topicCount: 30,
+    categories: [
+      {
+        name: "Technology & Data",
+        slug: "technology-data",
+        topics: [
+          { title: "Web Ecosystems & Frontend Architecture (HTML, CSS)", slug: "web-ecosystems-frontend-architecture" },
+          { title: "Core Python & Computational Logic", slug: "core-python-computational-logic" },
+          { title: "Data Foundations & Visual Analytics (Excel/SQL)", slug: "data-foundations-visual-analytics" },
+          { title: "UI/UX Design Fundamentals (Figma Basics)", slug: "ui-ux-design-fundamentals" },
+          { title: "Introduction to Cloud Computing Concepts", slug: "intro-cloud-computing" },
+          { title: "Basic Cyber Hygiene & Network Fundamentals", slug: "basic-cyber-hygiene-network" },
+        ],
+      },
+      {
+        name: "Business & Management (BBA/MBA)",
+        slug: "business-management",
+        topics: [
+          { title: "Digital Marketing Basics & SEO Fundamentals", slug: "digital-marketing-seo-basics" },
+          { title: "Financial Modeling & Spreadsheet Analytics", slug: "financial-modeling-spreadsheet-analytics" },
+          { title: "B2B Sales Fundamentals & Lead Generation", slug: "b2b-sales-lead-generation" },
+          { title: "Startup Business Planning & Lean Canvas", slug: "startup-business-planning-lean-canvas" },
+          { title: "HR Recruitment Basics & ATS Navigation", slug: "hr-recruitment-ats-navigation" },
+          { title: "Social Media Management & Community Building", slug: "social-media-management-community" },
+        ],
+      },
+      {
+        name: "Engineering (Mechanical & Civil)",
+        slug: "engineering-mech-civil",
+        topics: [
+          { title: "2D Digital Prototyping & Drafting (AutoCAD)", slug: "2d-digital-prototyping-autocad" },
+          { title: "Introduction to Manufacturing Materials", slug: "intro-manufacturing-materials" },
+          { title: "Basic Site Surveying & Spatial Planning", slug: "basic-site-surveying-spatial-planning" },
+          { title: "Construction Estimation Basics", slug: "construction-estimation-basics" },
+          { title: "3D Modeling Fundamentals (SolidWorks)", slug: "3d-modeling-fundamentals-solidworks" },
+          { title: "HVAC Fundamentals & Thermal Basics", slug: "hvac-fundamentals-thermal-basics" },
+        ],
+      },
+      {
+        name: "Law & Legal Studies",
+        slug: "law-legal-studies",
+        topics: [
+          { title: "Foundational Legal Research & Writing", slug: "foundational-legal-research-writing" },
+          { title: "Introduction to Corporate Law Structure", slug: "intro-corporate-law-structure" },
+          { title: "Intellectual Property (IP) Basics", slug: "intellectual-property-basics" },
+          { title: "Cyber Law & Digital Ethics", slug: "cyber-law-digital-ethics" },
+          { title: "Contracts & Drafting 101", slug: "contracts-drafting-101" },
+          { title: "Introduction to Legal Tech Tools", slug: "intro-legal-tech-tools" },
+        ],
+      },
+      {
+        name: "Mass Communication & Media",
+        slug: "mass-communication-media",
+        topics: [
+          { title: "Graphic Design Essentials (Canva/Photoshop)", slug: "graphic-design-essentials" },
+          { title: "Copywriting & Digital Content Creation", slug: "copywriting-digital-content-creation" },
+          { title: "Video Editing Basics (Premiere/CapCut)", slug: "video-editing-basics" },
+          { title: "Mobile Journalism (MoJo) & Storytelling", slug: "mobile-journalism-storytelling" },
+          { title: "Corporate PR Basics & Press Releases", slug: "corporate-pr-basics-press-releases" },
+          { title: "Audio Production & Podcasting", slug: "audio-production-podcasting" },
+        ],
+      },
+    ],
+  },
+  "Intermediate": {
+    duration: "75 Days",
+    projects: "6 Portfolio Projects Required",
+    focus: "Industry-level execution, software integration, data-driven strategy, and specialized workflows.",
+    topicCount: 30,
+    categories: [
+      {
+        name: "Technology & Data",
+        slug: "technology-data",
+        topics: [
+          { title: "Full Stack Web Development (React/Node)", slug: "full-stack-web-development" },
+          { title: "Applied Machine Learning & Data Modeling", slug: "applied-machine-learning-data-modeling" },
+          { title: "Cloud Architecture & Deployment (AWS/Azure)", slug: "cloud-architecture-deployment" },
+          { title: "Ethical Hacking & Penetration Testing", slug: "ethical-hacking-penetration-testing" },
+          { title: "Mobile App Engineering (Flutter/React Native)", slug: "mobile-app-engineering" },
+          { title: "IoT & Smart Connected Systems", slug: "iot-smart-connected-systems" },
+        ],
+      },
+      {
+        name: "Business & Management (BBA/MBA)",
+        slug: "business-management",
+        topics: [
+          { title: "AI-Driven Marketing Automation (CRM Workflows)", slug: "ai-marketing-automation-crm" },
+          { title: "Financial Analytics & Fintech Systems", slug: "financial-analytics-fintech" },
+          { title: "Supply Chain Optimization & Logistics Data", slug: "supply-chain-optimization-logistics" },
+          { title: "Agile Project Management (Scrum/Jira)", slug: "agile-project-management-scrum" },
+          { title: "E-Commerce Strategy & Scaling", slug: "e-commerce-strategy-scaling" },
+          { title: "Data-Driven HR Analytics", slug: "data-driven-hr-analytics" },
+        ],
+      },
+      {
+        name: "Engineering (Mechanical & Civil)",
+        slug: "engineering-mech-civil",
+        topics: [
+          { title: "Finite Element Analysis (FEA) Simulation", slug: "finite-element-analysis-fea" },
+          { title: "Structural Load Analysis (STAAD.Pro)", slug: "structural-load-analysis-staad" },
+          { title: "Building Information Modeling (BIM/Revit)", slug: "building-information-modeling-bim" },
+          { title: "Robotics & Mechatronics Integration", slug: "robotics-mechatronics-integration" },
+          { title: "CNC/CAM Programming & Machining", slug: "cnc-cam-programming-machining" },
+          { title: "Highway & Transportation Systems Design", slug: "highway-transportation-systems" },
+        ],
+      },
+      {
+        name: "Law & Legal Studies",
+        slug: "law-legal-studies",
+        topics: [
+          { title: "Mergers & Acquisitions (M&A) Law", slug: "mergers-acquisitions-law" },
+          { title: "Advanced Contract Negotiation & Redlining", slug: "advanced-contract-negotiation-redlining" },
+          { title: "Data Privacy Law (GDPR & Global Tech Compliance)", slug: "data-privacy-law-gdpr" },
+          { title: "International Arbitration & Dispute Resolution", slug: "international-arbitration-dispute" },
+          { title: "Startup Funding Legalities (Term Sheets)", slug: "startup-funding-legalities" },
+          { title: "E-Discovery & Litigation Support Operations", slug: "e-discovery-litigation-support" },
+        ],
+      },
+      {
+        name: "Mass Communication & Media",
+        slug: "mass-communication-media",
+        topics: [
+          { title: "Advanced UI/UX & Interactive Prototyping", slug: "advanced-ui-ux-prototyping" },
+          { title: "Data Journalism & Interactive Visualization", slug: "data-journalism-visualization" },
+          { title: "Brand Identity & Corporate Strategy", slug: "brand-identity-corporate-strategy" },
+          { title: "SEO Architecture & Performance Marketing", slug: "seo-architecture-performance-marketing" },
+          { title: "3D Animation & Motion Graphics", slug: "3d-animation-motion-graphics" },
+          { title: "Technical Writing & API Documentation", slug: "technical-writing-api-docs" },
+        ],
+      },
+    ],
+  },
+  "Advanced": {
+    duration: "90 Days",
+    projects: "9 Portfolio Projects Required",
+    focus: "Enterprise architecture, Generative AI integration, leadership, and startup-ready builds.",
+    topicCount: 30,
+    categories: [
+      {
+        name: "Technology & Data",
+        slug: "technology-data",
+        topics: [
+          { title: "Applied Generative AI & Autonomous Agents", slug: "applied-generative-ai-autonomous-agents" },
+          { title: "Enterprise DevOps & Kubernetes CI/CD", slug: "enterprise-devops-kubernetes-cicd" },
+          { title: "Decentralized Systems & Smart Contracts (Web3)", slug: "decentralized-systems-web3" },
+          { title: "Scalable System Design & Big Data Engineering", slug: "scalable-system-design-big-data" },
+          { title: "Advanced SOC Operations & Cyber Warfare", slug: "advanced-soc-operations-cyber" },
+          { title: "Quantum Computing Concepts & Cryptography", slug: "quantum-computing-cryptography" },
+        ],
+      },
+      {
+        name: "Business & Management (BBA/MBA)",
+        slug: "business-management",
+        topics: [
+          { title: "Algorithmic Trading & AI Finance Models", slug: "algorithmic-trading-ai-finance" },
+          { title: "Enterprise SaaS Scaling & Product-Led Growth", slug: "enterprise-saas-scaling-plg" },
+          { title: "Predictive Analytics for Executive Dashboards", slug: "predictive-analytics-dashboards" },
+          { title: "Global Business Strategy & M&A Execution", slug: "global-business-strategy-ma" },
+          { title: "AI in Supply Chain & Predictive Logistics", slug: "ai-supply-chain-predictive-logistics" },
+          { title: "Advanced AI Product Management", slug: "advanced-ai-product-management" },
+        ],
+      },
+      {
+        name: "Engineering (Mechanical & Civil)",
+        slug: "engineering-mech-civil",
+        topics: [
+          { title: "Generative Design & AI in CAD Architecture", slug: "generative-design-ai-cad" },
+          { title: "Computational Fluid Dynamics (CFD)", slug: "computational-fluid-dynamics-cfd" },
+          { title: "Smart Cities Infrastructure & IoT Integration", slug: "smart-cities-infrastructure-iot" },
+          { title: "Advanced Aerospace & Composite Materials", slug: "advanced-aerospace-composite-materials" },
+          { title: "Autonomous Robotics Systems & Vision", slug: "autonomous-robotics-systems-vision" },
+          { title: "Geotechnical & Earthquake Engineering", slug: "geotechnical-earthquake-engineering" },
+        ],
+      },
+      {
+        name: "Law & Legal Studies",
+        slug: "law-legal-studies",
+        topics: [
+          { title: "AI & Algorithmic Liability Law", slug: "ai-algorithmic-liability-law" },
+          { title: "Decentralized Finance (DeFi) & Crypto Law", slug: "decentralized-finance-defi-crypto-law" },
+          { title: "Space & Satellite Law Operations", slug: "space-satellite-law-operations" },
+          { title: "Advanced Tech Patents & IP Litigation", slug: "advanced-tech-patents-ip-litigation" },
+          { title: "Corporate Cyber-Compliance (CISO Legalities)", slug: "corporate-cyber-compliance-ciso" },
+          { title: "International Trade & Tech Tariffs", slug: "international-trade-tech-tariffs" },
+        ],
+      },
+      {
+        name: "Mass Communication & Media",
+        slug: "mass-communication-media",
+        topics: [
+          { title: "AI-Generated Media & Prompt Engineering Workflows", slug: "ai-generated-media-prompt-engineering" },
+          { title: "AR/VR Experience Design (Spatial Computing)", slug: "ar-vr-experience-design" },
+          { title: "Growth Hacking & Programmatic Advertising", slug: "growth-hacking-programmatic-ads" },
+          { title: "Crisis Communications & Deepfake Mitigation", slug: "crisis-communications-deepfake-mitigation" },
+          { title: "Enterprise Digital Transformation Comms", slug: "enterprise-digital-transformation-comms" },
+          { title: "Metaverse Architecture & Digital World Building", slug: "metaverse-architecture-digital-world" },
+        ],
+      },
+    ],
+  },
+};

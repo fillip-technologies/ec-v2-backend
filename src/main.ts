@@ -12,6 +12,9 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   const appConfig = configService.get<AppConfig>('app');
 
+  // Set global API prefix to prevent route conflicts with frontend pages
+  app.setGlobalPrefix('api/v1');
+
   // Enable CORS (allows all origins by default or as configured in .env)
   app.enableCors({
     origin: appConfig?.corsOrigins !== undefined ? appConfig.corsOrigins : true,

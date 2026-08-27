@@ -1,0 +1,18 @@
+<svg width="600" height="420" viewBox="0 0 600 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="600" height="420" rx="32" fill="#172554"/>
+<rect x="24" y="24" width="552" height="372" rx="24" fill="url(#a)"/>
+<circle cx="500" cy="102" r="78" fill="#DBEAFE" fill-opacity=".22"/>
+<circle cx="112" cy="314" r="86" fill="#93C5FD" fill-opacity=".18"/>
+<path d="M172 276C124 276 92 246 92 204C92 170 117 144 152 140C165 112 191 94 224 94C268 94 304 126 304 166C339 171 366 200 366 236C366 279 332 312 288 312H172V276Z" fill="#EFF6FF" fill-opacity=".92"/>
+<rect x="110" y="292" width="230" height="22" rx="11" fill="#60A5FA"/>
+<path d="M412 136H508" stroke="#EFF6FF" stroke-width="24" stroke-linecap="round"/>
+<path d="M412 192H534" stroke="#DBEAFE" stroke-width="22" stroke-linecap="round"/>
+<path d="M412 248H482" stroke="#DBEAFE" stroke-width="22" stroke-linecap="round" stroke-opacity=".72"/>
+<text x="82" y="358" fill="#EFF6FF" font-family="Arial, sans-serif" font-size="40" font-weight="700">CLOUD</text>
+<defs>
+<linearGradient id="a" x1="58" y1="42" x2="548" y2="376" gradientUnits="userSpaceOnUse">
+<stop stop-color="#2563EB"/>
+<stop offset="1" stop-color="#1E3A8A"/>
+</linearGradient>
+</defs>
+</svg>

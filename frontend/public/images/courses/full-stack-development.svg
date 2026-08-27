@@ -1,0 +1,20 @@
+<svg width="600" height="420" viewBox="0 0 600 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="600" height="420" rx="32" fill="#0F172A"/>
+<rect x="24" y="24" width="552" height="372" rx="24" fill="url(#a)"/>
+<circle cx="473" cy="113" r="72" fill="#22D3EE" fill-opacity=".18"/>
+<circle cx="138" cy="306" r="96" fill="#A78BFA" fill-opacity=".18"/>
+<rect x="72" y="94" width="208" height="28" rx="14" fill="#E2E8F0" fill-opacity=".9"/>
+<rect x="72" y="140" width="278" height="18" rx="9" fill="#BFDBFE" fill-opacity=".8"/>
+<rect x="72" y="174" width="244" height="18" rx="9" fill="#BFDBFE" fill-opacity=".55"/>
+<rect x="72" y="244" width="144" height="84" rx="20" fill="#0F172A" fill-opacity=".78"/>
+<rect x="232" y="244" width="144" height="84" rx="20" fill="#1D4ED8" fill-opacity=".72"/>
+<path d="M432 267H514" stroke="#F8FAFC" stroke-width="18" stroke-linecap="round"/>
+<path d="M432 303H490" stroke="#F8FAFC" stroke-width="18" stroke-linecap="round" stroke-opacity=".72"/>
+<text x="72" y="348" fill="#F8FAFC" font-family="Arial, sans-serif" font-size="42" font-weight="700">FULL STACK</text>
+<defs>
+<linearGradient id="a" x1="52" y1="44" x2="546" y2="376" gradientUnits="userSpaceOnUse">
+<stop stop-color="#1E293B"/>
+<stop offset="1" stop-color="#0F766E"/>
+</linearGradient>
+</defs>
+</svg>

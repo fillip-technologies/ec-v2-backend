@@ -1,0 +1,19 @@
+<svg width="600" height="420" viewBox="0 0 600 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="600" height="420" rx="32" fill="#3F3F46"/>
+<rect x="24" y="24" width="552" height="372" rx="24" fill="url(#a)"/>
+<circle cx="492" cy="110" r="72" fill="#FDE68A" fill-opacity=".22"/>
+<circle cx="124" cy="314" r="88" fill="#86EFAC" fill-opacity=".18"/>
+<rect x="82" y="106" width="182" height="208" rx="28" fill="#FAFAF9" fill-opacity=".94"/>
+<rect x="108" y="134" width="128" height="16" rx="8" fill="#10B981"/>
+<rect x="108" y="168" width="90" height="90" rx="18" fill="#DCFCE7"/>
+<path d="M336 270C336 224 370 186 414 186C458 186 492 224 492 270" stroke="#F8FAFC" stroke-width="22" stroke-linecap="round"/>
+<path d="M414 214V270H472" stroke="#FCD34D" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M320 132H512" stroke="#F8FAFC" stroke-width="24" stroke-linecap="round"/>
+<text x="82" y="360" fill="#FAFAF9" font-family="Arial, sans-serif" font-size="40" font-weight="700">MARKETING</text>
+<defs>
+<linearGradient id="a" x1="48" y1="44" x2="548" y2="376" gradientUnits="userSpaceOnUse">
+<stop stop-color="#16A34A"/>
+<stop offset="1" stop-color="#15803D"/>
+</linearGradient>
+</defs>
+</svg>
