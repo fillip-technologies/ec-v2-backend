@@ -4,7 +4,7 @@ export interface AppConfig {
   baseUrl: string;
   port: number;
   nodeEnv: string;
-  corsOrigins: string[];
+  corsOrigins: string[] | boolean;
   jwt: {
     secret: string;
     expiresIn: string;
@@ -36,11 +36,11 @@ export default registerAs('app', (): AppConfig => {
     baseUrl: process.env.BASE_URL || 'http://localhost',
     port: parseInt(process.env.PORT || '4000', 10),
     nodeEnv: process.env.NODE_ENV || 'development',
-    corsOrigins: [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'http://127.0.0.1:3000',
-    ],
+    corsOrigins: process.env.CORS_ORIGINS
+      ? process.env.CORS_ORIGINS.trim() === '*'
+        ? true
+        : process.env.CORS_ORIGINS.split(',').map((s) => s.trim())
+      : true,
     jwt: {
       secret: process.env.JWT_SECRET || 'engineers_clinic_super_secret_jwt_key_2026',
       expiresIn: process.env.JWT_EXPIRES_IN || '15m',
