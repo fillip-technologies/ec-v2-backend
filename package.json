@@ -8,8 +8,8 @@
     "build": "npm run build:backend && npm run build:frontend",
     "start:backend": "cd backend && npm run start:prod",
     "start:frontend": "cd frontend && npm start",
-    "start:all": "npx pm2 start ecosystem.config.js",
-    "restart:all": "npx pm2 reload ecosystem.config.js",
+    "start:all": "npx pm2 delete all 2>/dev/null || true; npx pm2 start ecosystem.config.js",
+    "restart:all": "npx pm2 delete all 2>/dev/null || true; npx pm2 start ecosystem.config.js",
     "deploy": "chmod +x deploy.sh && ./deploy.sh"
   },
   "devDependencies": {

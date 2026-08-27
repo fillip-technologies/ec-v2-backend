@@ -24,16 +24,20 @@ cd ..
 
 echo "⚡ [3/3] Starting/Reloading Services with PM2..."
 if command -v pm2 &> /dev/null; then
-    pm2 reload ecosystem.config.js || pm2 start ecosystem.config.js
+    pm2 delete all 2>/dev/null || true
+    pm2 start ecosystem.config.js
     pm2 save || true
 elif [ -f "./node_modules/.bin/pm2" ]; then
-    ./node_modules/.bin/pm2 reload ecosystem.config.js || ./node_modules/.bin/pm2 start ecosystem.config.js
+    ./node_modules/.bin/pm2 delete all 2>/dev/null || true
+    ./node_modules/.bin/pm2 start ecosystem.config.js
     ./node_modules/.bin/pm2 save || true
 elif [ -f "./backend/node_modules/.bin/pm2" ]; then
-    ./backend/node_modules/.bin/pm2 reload ecosystem.config.js || ./backend/node_modules/.bin/pm2 start ecosystem.config.js
+    ./backend/node_modules/.bin/pm2 delete all 2>/dev/null || true
+    ./backend/node_modules/.bin/pm2 start ecosystem.config.js
     ./backend/node_modules/.bin/pm2 save || true
 else
-    npx --yes pm2 reload ecosystem.config.js || npx --yes pm2 start ecosystem.config.js
+    npx --yes pm2 delete all 2>/dev/null || true
+    npx --yes pm2 start ecosystem.config.js
     npx --yes pm2 save || true
 fi
 
