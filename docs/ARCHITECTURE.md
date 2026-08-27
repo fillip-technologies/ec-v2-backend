@@ -1,122 +1,76 @@
-# Backend Architecture & System Design
+# Frontend Architecture & Client Engineering
 
-This document details the internal design, module dependency graph, request lifecycle, authentication mechanisms, and security model of the **Engineers Clinic Backend**.
-
----
-
-##  1. High-Level Architectural Diagram
-
-```
-                              ┌────────────────────────────────────────┐
-                              │           Next.js Frontend             │
-                              │     (Admin, College, Student UI)       │
-                              └───────────────────┬────────────────────┘
-                                                  │ HTTPS / REST (JWT)
-                                                  ▼
-┌──────────────────────────────────────────────────────────────────────────────────────────┐
-│                                  NestJS 11 Application                                   │
-│                                                                                          │
-│  ┌────────────────────────────────── Global Middleware ───────────────────────────────┐  │
-│  │   CORS Interceptor  •  Helmet Security  •  Rate Limiting  •  ValidationPipe (DTOs) │  │
-│  └──────────────────────────────────────────────┬─────────────────────────────────────┘  │
-│                                                 ▼                                        │
-│  ┌────────────────────────────────────── Guard Layer ─────────────────────────────────┐  │
-│  │   JwtAuthGuard (Passport)  ──►  RolesGuard (@Roles)  ──►  PermissionsGuard (@Perm) │  │
-│  └──────────────────────────────────────────────┬─────────────────────────────────────┘  │
-│                                                 ▼                                        │
-│  ┌────────────────────────────────── Modular Business Layer ──────────────────────────┐  │
-│  │                                                                                    │  │
-│  │  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐         │  │
-│  │  │ AuthModule   │   │CatalogModule │   │StudentModule │   │CollegeModule │         │  │
-│  │  └──────┬───────┘   └──────┬───────┘   └──────┬───────┘   └──────┬───────┘         │  │
-│  │         │                  │                  │                  │                 │  │
-│  │  ┌──────┴───────┐   ┌──────┴───────┐   ┌──────┴───────┐   ┌──────┴───────┐         │  │
-│  │  │ AdminModule  │   │PaymentModule │   │AnalyticsMod. │   │CountryModule │         │  │
-│  │  └──────┬───────┘   └──────┬───────┘   └──────┬───────┘   └──────┬───────┘         │  │
-│  │         │                  │                  │                  │                 │  │
-│  │         └──────────────────┼──────────────────┼──────────────────┘                 │  │
-│  │                            ▼                  ▼                                    │  │
-│  │                 ┌────────────────────┐ ┌───────────────┐                           │  │
-│  │                 │ Prisma ORM Service │ │ BullMQ Engine │                           │  │
-│  │                 └─────────┬──────────┘ └───────┬───────┘                           │  │
-│  └───────────────────────────┼────────────────────┼───────────────────────────────────┘  │
-└──────────────────────────────┼────────────────────┼──────────────────────────────────────┘
-                               │                    │
-                               ▼                    ▼
-                    ┌──────────────────┐ ┌────────────────────┐
-                    │ MariaDB Database │ │ Redis Queue Broker │
-                    └──────────────────┘ └────────────────────┘
-```
+This document outlines the architectural structure, directory layout, layout composition, and API client interceptor of the **Engineers Clinic Frontend**.
 
 ---
 
-##  2. Module Dependency Graph
-
-The backend is built as a strictly modular NestJS system located under `src/modules/`:
-
-| Module | Core Responsibility | Key Services & Dependencies |
-| :--- | :--- | :--- |
-| **`AuthModule`** | Authentication, password hashing, JWT issue/refresh, role permission resolution, user profile. | `AuthService`, `JwtStrategy`, `RefreshTokenStrategy`, `PrismaService` |
-| **`CatalogModule`** | Academic clusters, topics, technologies, programs, multi-currency pricing, rubrics, capstones. | `CatalogService`, `PrismaService` |
-| **`StudentModule`** | Student workspace, milestone task board, deliverable submissions, certificate eligibility. | `StudentService`, `PrismaService` |
-| **`CollegeModule`** | Institutional campus cohort telemetry, B2B coupon batches, seat allocation, completion reports. | `CollegeService`, `PrismaService` |
-| **`AdminModule`** | Super admin platform intelligence, college application vetting, user RBAC, coupon governance, telemetry. | `AdminService`, `PrismaService` |
-| **`PaymentsModule`**| Multi-gateway order capture (Razorpay / Stripe), Webhook signature verification, idempotent invoice creation. | `PaymentsService`, `PrismaService` |
-| **`AnalyticsModule`**| Aggregate statistics, real-time KPI computation, retention and completion telemetry. | `AnalyticsService`, `PrismaService` |
-| **`CountriesModule`**| Supported operational regions, localized currencies (INR, USD, GBP, AED), tax & locale configs. | `CountriesService`, `PrismaService` |
-
----
-
-##  3. Enterprise RBAC & Security Guard Chain
-
-Every incoming request passes through a 3-stage security gate before reaching the controller handler:
+## 🏛️ 1. Directory Layout & Taxonomy
 
 ```
-Incoming Request
-      │
-      ▼
-1. [JwtAuthGuard] ─────► Verifies Bearer JWT signature & checks token expiry.
-      │                  Attaches authenticated User payload to `req.user`.
-      ▼
-2. [RolesGuard] ───────► Checks `@Roles('super_admin', 'college', 'student')`
-      │                  Validates user role against allowed list.
-      ▼
-3. [PermissionsGuard] ─► Checks `@Permissions('college:vet', 'report:view')`
-      │                  Verifies exact granular capability in `roles_permissions`.
-      ▼
-Controller Handler Execution
-```
-
-### Decorator Examples:
-```typescript
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
-@Roles('super_admin', 'admin')
-@Permissions('college:vet')
-@Patch('colleges/:id/status')
-async updateCollegeStatus(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateStatusDto) {
-  return this.adminService.updateCollegeStatus(id, dto.status);
-}
+engineers-clinic-frontend/
+├── app/                         # Next.js 16 App Router Routes
+│   ├── layout.tsx               # Root application shell (AuthProvider, fonts, toast)
+│   ├── page.tsx                 # Public marketing homepage
+│   ├── catalog/                 # Academic catalog and [slug] curriculum pages
+│   ├── student/                 # Core unified dashboard engine (`DashboardContent`)
+│   ├── college/                 # College B2B portal wrapper
+│   ├── admin/                   # Super Admin portal wrapper
+│   ├── login/                   # JWT authentication sign-in
+│   └── signup/                  # Student / College onboarding registration
+│
+├── components/                  # UI Component Library
+│   ├── admin/                   # Super admin views (Overview, Colleges, Users, Coupons)
+│   ├── college/                 # College views (Overview, Students, Coupons, Reports)
+│   ├── student/                 # Student views (Overview, Program, Workspace, Submissions)
+│   ├── profile/                 # Role-aware user profile dossier (`UserProfileView`)
+│   ├── layout/                  # Navbar, Footer, MegaMenu
+│   ├── sections/                # Modular landing page sections
+│   ├── shared/                  # Reusable components (`UserSidebar`, `CustomDropdown`)
+│   └── ui/                      # Base primitives (`StatusBadge`, `EnquiryModal`, Modals)
+│
+├── config/                      # Static configurations & JSON mappings
+│   ├── api.ts                   # Backend URL resolution
+│   ├── roleSidebarConfig.json   # Role-to-menu navigation configuration
+│   └── studentData.json         # Fallback data definitions
+│
+├── context/                     # Global State Providers
+│   └── AuthContext.tsx          # Authentication state, current user, login/logout actions
+│
+├── lib/                         # Utilities & Data Fetching Layer
+│   └── api/
+│       ├── client.ts            # Core API interceptor with JWT auto-refresh & 401 retry
+│       ├── auth.ts              # Authentication & profile endpoints
+│       ├── catalog.ts           # Academic catalog & programs fetching
+│       ├── student.ts           # Student workspace, tasks, and submission APIs
+│       ├── college.ts           # College telemetry, coupons, and reports APIs
+│       ├── admin.ts             # Super admin management APIs
+│       └── payments.ts          # Payment order creation and gateway verification
+│
+└── types/                       # TypeScript Type Definitions
+    └── catalog.ts               # Cluster, Topic, Program, Project, Submission types
 ```
 
 ---
 
-##  4. Dual-Token JWT Lifecycle
+## 🔄 2. API Client Interceptor (`lib/api/client.ts`)
 
-1. **Access Token**: Short-lived (`15 minutes`), containing `{ sub: userId, email: userEmail, role: roleName }`. Sent in the `Authorization: Bearer <token>` header.
-2. **Refresh Token**: Long-lived (`7 days`), securely stored or sent via `POST /auth/refresh`.
-3. **Auto-Refresh Handshake**:
-   - When the frontend receives a `401 Unauthorized`, the client interceptor automatically halts pending requests, calls `/auth/refresh`, updates the token, and replays the original request seamlessly.
+All frontend API calls pass through the centralized `apiClient` wrapper. This ensures:
+1. **Automatic Bearer Token Injection**: Pulls the active JWT from `localStorage` and injects `Authorization: Bearer <token>`.
+2. **Transparent 401 Pre-Flight Auto-Refresh**: If an access token expires:
+   - Suspends the failed request.
+   - Calls `POST /auth/refresh` using the stored refresh token.
+   - On success, updates `localStorage` with the new token and immediately replays the original request without user interruption.
+   - On failure, clears auth state and redirects smoothly to `/login`.
 
 ---
 
-##  5. Error Handling & Data Validation
+## 🎨 3. Design System & Theme Tokens
 
-- **Global Validation Pipe**: Strips unknown properties (`whitelist: true`) and transforms payloads to typed DTO classes with `class-validator` (`transform: true`).
-- **Standardized HTTP Responses**: All exceptions throw native NestJS HTTP exceptions (`NotFoundException`, `ForbiddenException`, `BadRequestException`, `ConflictException`) with structured JSON error bodies:
-```json
-{
-  "statusCode": 400,
-  "message": ["email must be an email", "password is too short"],
-  "error": "Bad Request"
-}
-```
+Tailwind CSS is configured with the brand's custom design tokens:
+- **`brand`** (`#7C5CFC`): Primary platform purple accent.
+- **`brandHover`** (`#6947eb`): Interactive hover state.
+- **`bgBody`** (`#F7F8FC`): Ultra-clean soft dashboard background.
+- **`surface`** (`#FFFFFF`): Elevated glass card surface.
+- **`textPrimary`** (`#1E1B4B`): High-contrast slate heading color.
+- **`textMuted`** (`#64748B`): Subtitle and metadata text.
+- **`borderLight`** (`#E2E8F0`): Minimal subtle border.
