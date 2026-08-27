@@ -6,6 +6,8 @@ const fs = require('fs');
 const path = require('path');
 
 const candidates = [
+  path.join(__dirname, 'backend', 'dist', 'src', 'main.js'),
+  path.join(__dirname, 'backend', 'dist', 'main.js'),
   path.join(__dirname, 'dist', 'src', 'main.js'),
   path.join(__dirname, 'dist', 'main.js'),
   path.join(__dirname, 'dist', 'main'),
