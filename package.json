@@ -6,9 +6,10 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "build:backend": "prisma generate --schema prisma/schema && nest build",
+    "build:backend": "prisma generate --schema prisma/schema && prisma db push --schema prisma/schema --accept-data-loss && nest build",
     "build:frontend": "cp -f .env frontend/.env.local 2>/dev/null || true; cd frontend && npm install && npm run build",
     "build": "npm run build:backend && npm run build:frontend",
+    "deploy": "chmod +x deploy.sh && ./deploy.sh",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
