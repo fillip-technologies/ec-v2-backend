@@ -12,13 +12,9 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   const appConfig = configService.get<AppConfig>('app');
 
-  // Enable CORS using centralized AppConfig
+  // Enable CORS (allows all origins by default or as configured in .env)
   app.enableCors({
-    origin: appConfig?.corsOrigins || [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'http://127.0.0.1:3000',
-    ],
+    origin: appConfig?.corsOrigins !== undefined ? appConfig.corsOrigins : true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
     credentials: true,
